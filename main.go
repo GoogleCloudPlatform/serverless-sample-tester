@@ -24,7 +24,7 @@ import (
 var (
 	sample *Sample
 
-	sampleDir string
+	sampleDir          string
 	keepContainerImage bool
 
 	allTestsPassed bool

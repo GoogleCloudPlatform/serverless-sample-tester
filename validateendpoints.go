@@ -19,9 +19,9 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"io/ioutil"
 	"log"
-"net/http"
-"strconv"
-"strings"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 var identityToken string
@@ -87,7 +87,7 @@ func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strin
 		log.Panicf("Error creating http request: %v\n", err)
 	}
 
-	req.Header.Add("Authorization", "Bearer " + identityToken)
+	req.Header.Add("Authorization", "Bearer "+identityToken)
 	req.Header.Add("content-type", mimeType)
 
 	resp, err := (*client).Do(req)

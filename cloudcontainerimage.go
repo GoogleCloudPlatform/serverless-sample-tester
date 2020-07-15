@@ -31,7 +31,7 @@ type CloudContainerImage struct {
 // newCloudContainerImage creates a new CloudContainerImage for the provided Sample.
 func newCloudContainerImage(sample *Sample) *CloudContainerImage {
 	cloudContainerImage := CloudContainerImage{
-		sample: sample,
+		sample:       sample,
 		containerTag: cloudContainerImageTag(sample),
 	}
 
