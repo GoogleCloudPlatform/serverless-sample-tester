@@ -1,0 +1,99 @@
+package main
+
+import (
+	"fmt"
+	"github.com/getkin/kin-openapi/openapi3"
+	"io/ioutil"
+	"log"
+"net/http"
+"strconv"
+"strings"
+)
+
+var identityToken string
+
+// validateEndpoints tests all paths (represented by openapi3.Paths) with all HTTP methods and given response bodies
+// and make sure they respond with the expected status code. Returns a success bool based on whether all the tests
+// passed.
+func validateEndpoints(paths *openapi3.Paths, identTok string) bool {
+	identityToken = identTok
+
+	success := true
+	for endpoint, pathItem := range *paths {
+		log.Printf("Testing %s endpoint\n", endpoint)
+		success = success && validateEndpointOperation(pathItem.Connect, endpoint, http.MethodConnect)
+		success = success && validateEndpointOperation(pathItem.Delete, endpoint, http.MethodDelete)
+		success = success && validateEndpointOperation(pathItem.Get, endpoint, http.MethodGet)
+		success = success && validateEndpointOperation(pathItem.Head, endpoint, http.MethodHead)
+		success = success && validateEndpointOperation(pathItem.Options, endpoint, http.MethodOptions)
+		success = success && validateEndpointOperation(pathItem.Patch, endpoint, http.MethodPatch)
+		success = success && validateEndpointOperation(pathItem.Post, endpoint, http.MethodPost)
+		success = success && validateEndpointOperation(pathItem.Put, endpoint, http.MethodPut)
+		success = success && validateEndpointOperation(pathItem.Trace, endpoint, http.MethodTrace)
+	}
+
+	return success
+}
+
+// validateEndpointOperation validates a single endpoint and a single HTTP method and makes sure that request --
+// including the provided sample request body -- elicits the expected status code.
+func validateEndpointOperation(operation *openapi3.Operation, endpoint string, httpMethod string) bool {
+	if operation == nil {
+		return true
+	}
+	log.Printf("%s %s\n", httpMethod, endpoint)
+
+	if operation.RequestBody == nil {
+		log.Println("Empty request body")
+		reqBodyReader := strings.NewReader("")
+
+		return makeTestRequest(httpMethod, endpoint, "", reqBodyReader, operation)
+	}
+
+	reqBodies := operation.RequestBody.Value.Content
+	allTestsPassed := true
+	for mimeType, mediaType := range reqBodies {
+		reqBodyStr := mediaType.Example.(string)
+		log.Printf("%s: %s", mimeType, reqBodyStr)
+
+		reqBodyReader := strings.NewReader(reqBodyStr)
+		allTestsPassed = allTestsPassed && makeTestRequest(httpMethod, endpoint, mimeType, reqBodyReader, operation)
+	}
+
+	return allTestsPassed
+}
+
+// makeTestRequest makes a request based on the . It returns a success bool based on whether the returned status code
+// was included in the provided openapi3.Operation expected responses.
+func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation) bool {
+	client := &http.DefaultClient
+
+	req, err := http.NewRequest(httpMethod, sample.cloudRunService.getURL()+endpoint, reqBodyReader)
+	if err != nil {
+		log.Panicf("Error creating http request: %v\n", err)
+	}
+
+	req.Header.Add("Authorization", "Bearer " + identityToken)
+	req.Header.Add("content-type", mimeType)
+
+	resp, err := (*client).Do(req)
+	if err != nil {
+		log.Panicf("Error executing http request: %v\n", err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	statusCode := strconv.Itoa(resp.StatusCode)
+	log.Printf("Status code: %s\n", statusCode)
+
+	if val, ok := operation.Responses[statusCode]; ok {
+		log.Printf("Response description: %s\n", *val.Value.Description)
+		return true
+	} else {
+		log.Println("Unknown response description: FAIL")
+		log.Println("Dumping response body")
+		fmt.Println(string(body))
+		return false
+	}
+}

@@ -12,3 +12,15 @@ identifying bugs that arise when samples are deployed to Cloud Run. It will:
 1. Check deployed service for expected responses
 1. Return logs of health check service’s logs if any tests failed
 1. Clean up any created resources as part of previous processes
+
+## Build
+
+```bash
+go build *.go
+```
+
+## Usage
+
+```bash
+sst [sample-dir]
+```
