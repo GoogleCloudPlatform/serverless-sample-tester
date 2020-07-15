@@ -58,9 +58,9 @@ func newLifeCycle(id string, phases []*Phase) *Lifecycle {
 	return &lifecycle
 }
 
-// buildBuildDeployLifecycle builds a lifecycle with the following phases: build, deploy, and post-deploy. No goals
+// buildLifecycle builds a lifecycle with the following phases: build, deploy, and post-deploy. No goals
 // will be attached to any phase.
-func buildBuildDeployLifecycle() *Lifecycle {
+func buildLifecycle() *Lifecycle {
 	return newLifeCycle("build_deploy", []*Phase{
 		{
 			id:    "build",
@@ -92,9 +92,9 @@ func (l *Lifecycle) execute() {
 	}
 }
 
-// getBuildDeployLifecycle returns a Lifecycle built with reasonable defaults based on whether the sample is java-based
+// getLifecycle returns a Lifecycle built with reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func getBuildDeployLifecycle(sample *Sample) *Lifecycle {
+func getLifecycle(sample *Sample) *Lifecycle {
 	pomPath := fmt.Sprintf("%s/pom.xml", sample.dir)
 	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sample.dir)
 
@@ -105,17 +105,17 @@ func getBuildDeployLifecycle(sample *Sample) *Lifecycle {
 	dockerfileExists := err == nil
 
 	if pomExists && !dockerfileExists {
-		return buildDefaultJavaBuildDeployLifecycle(sample)
+		return buildDefaultJavaLifecycle(sample)
 	} else {
-		return buildDefaultBuildDeployLifecycle(sample)
+		return buildDefaultLifecycle(sample)
 	}
 }
 
-// buildDefaultBuildDeployLifecycle builds a build and deploy command lifecycle with reasonable defaults for a non-Java
+// buildDefaultLifecycle builds a build and deploy command lifecycle with reasonable defaults for a non-Java
 // project. It uses `gcloud builds submit` for building the samples container image and submitting it to the container
 // and `gcloud run deploy` for deploying it to Cloud Run.
-func buildDefaultBuildDeployLifecycle(sample *Sample) *Lifecycle {
-	lifecycle := buildBuildDeployLifecycle()
+func buildDefaultLifecycle(sample *Sample) *Lifecycle {
+	lifecycle := buildLifecycle()
 
 	gcrURL := sample.cloudContainerImage.url()
 	lifecycle.phaseMap["build"].goals = []*exec.Cmd{
@@ -140,11 +140,11 @@ func buildDefaultBuildDeployLifecycle(sample *Sample) *Lifecycle {
 	return lifecycle
 }
 
-// buildDefaultBuildDeployLifecycle builds a build and deploy command lifecycle with reasonable defaults for Java
+// buildDefaultJavaLifecycle builds a build and deploy command lifecycle with reasonable defaults for Java
 // samples. It uses `com.google.cloud.tools:jib-maven-plugin:2.0.0:build` for building the samples container image and
 // submitting it to the container and `gcloud run deploy` for deploying it to Cloud Run.
-func buildDefaultJavaBuildDeployLifecycle(sample *Sample) *Lifecycle {
-	lifecycle := buildDefaultBuildDeployLifecycle(sample)
+func buildDefaultJavaLifecycle(sample *Sample) *Lifecycle {
+	lifecycle := buildDefaultLifecycle(sample)
 
 	gcrURL := sample.cloudContainerImage.url()
 	lifecycle.phaseMap["build"].goals = []*exec.Cmd{
