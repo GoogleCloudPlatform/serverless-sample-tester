@@ -49,7 +49,7 @@ func validateEndpoints(paths *openapi3.Paths, identTok string) bool {
 	return success
 }
 
-// validateEndpointOperation validates a single endpoint and a single HTTP method and makes sure that request --
+// validateEndpointOperation validates a single endpoint and a single HTTP method, and ensures that the request --
 // including the provided sample request body -- elicits the expected status code.
 func validateEndpointOperation(operation *openapi3.Operation, endpoint string, httpMethod string) bool {
 	if operation == nil {
