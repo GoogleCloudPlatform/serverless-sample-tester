@@ -47,7 +47,7 @@ func newSample(dir string) *Sample {
 
 	sample.cloudRunService = newCloudRunService(&sample)
 	sample.cloudContainerImage = newCloudContainerImage(&sample)
-	sample.buildDeployLifecycle = getBuildDeployLifecycle(&sample)
+	sample.buildDeployLifecycle = getLifecycle(&sample)
 
 	return &sample
 }
