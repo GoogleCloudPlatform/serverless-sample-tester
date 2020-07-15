@@ -9,18 +9,18 @@ focused on being an end-to-end testing framework that specifically targets
 identifying bugs that arise when samples are deployed to Cloud Run. It will:
 
 1. Deploy samples to Cloud Run
-1. Check deployed service for expected responses
-1. Return logs of health check service’s logs if any tests failed
-1. Clean up any created resources as part of previous processes
+2. Check deployed service for expected responses
+3. Return logs of health check service’s logs if any tests failed
+4. Clean up any created resources as part of previous processes
 
 ## Build
 
 ```bash
-go build *.go
+go build -o sst *.go
 ```
 
 ## Usage
 
 ```bash
-sst [sample-dir]
+./sst [sample-dir]
 ```
