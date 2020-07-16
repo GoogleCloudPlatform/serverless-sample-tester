@@ -35,7 +35,7 @@ type sample struct {
 	container *cloudContainerImage
 
 	// The lifecycle for building and deploying this sample to Cloud Run
-	buildDeployLifecycle *lifecycle
+	buildDeployLifecycle lifecycle
 }
 
 // newSample creates a new sample object for the sample located in the provided local directory.
