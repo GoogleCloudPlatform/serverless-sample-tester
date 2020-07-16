@@ -36,7 +36,7 @@ type CloudRunService struct {
 	url string
 }
 
-// newCloudRunService returns a pointer to a new CloudRunService with the provided name.
+// newCloudRunService returns a new CloudRunService with the provided name.
 func newCloudRunService(sample *Sample) *CloudRunService {
 	return &CloudRunService{
 		sample: sample,
