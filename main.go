@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	sample *Sample
+	s *sample
 
 	sampleDir          string
 	keepContainerImage bool
@@ -58,7 +58,7 @@ func root(cmd *cobra.Command, args []string) {
 	}
 
 	log.Println("Setting up configuration values")
-	sample = newSample(sampleDir)
+	s = newSample(sampleDir)
 
 	log.Println("Loading test endpoints")
 	swagger := loadTestEndpoints()
@@ -71,9 +71,9 @@ func root(cmd *cobra.Command, args []string) {
 	}))
 
 	log.Println("Building and deploying sample to Cloud Run")
-	sample.buildDeployLifecycle.execute()
-	defer sample.cloudRunService.delete()
-	defer sample.cloudContainerImage.delete()
+	s.buildDeployLifecycle.execute()
+	defer s.cloudRunService.delete()
+	defer s.cloudContainerImage.delete()
 
 	log.Println("Getting identity token for service account")
 	identToken := execCommand(gcloudCommandBuild([]string{

@@ -82,7 +82,7 @@ func validateEndpointOperation(operation *openapi3.Operation, endpoint string, h
 func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation) bool {
 	client := &http.DefaultClient
 
-	req, err := http.NewRequest(httpMethod, sample.cloudRunService.getURL()+endpoint, reqBodyReader)
+	req, err := http.NewRequest(httpMethod, s.cloudRunService.getURL()+endpoint, reqBodyReader)
 	if err != nil {
 		log.Panicf("Error creating http request: %v\n", err)
 	}

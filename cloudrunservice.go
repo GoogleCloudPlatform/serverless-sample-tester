@@ -24,10 +24,10 @@ import (
 // Maximum length of a Cloud Run Service name.
 const maxCloudRunServiceNameLen = 53
 
-// CloudRunService represents a Cloud Run Service and holds its name and URL.
-type CloudRunService struct {
-	// the associated Sample
-	sample *Sample
+// cloudRunService represents a Cloud Run Service and holds its name and URL.
+type cloudRunService struct {
+	// the associated sample
+	sample *sample
 
 	// the Service's name
 	name string
@@ -36,16 +36,16 @@ type CloudRunService struct {
 	url string
 }
 
-// newCloudRunService returns a new CloudRunService with the provided name.
-func newCloudRunService(sample *Sample) *CloudRunService {
-	return &CloudRunService{
+// newCloudRunService returns a new cloudRunService with the provided name.
+func newCloudRunService(sample *sample) *cloudRunService {
+	return &cloudRunService{
 		sample: sample,
 		name:   serviceName(sample),
 	}
 }
 
-// delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current CloudRunService.
-func (s *CloudRunService) delete() {
+// delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current cloudRunService.
+func (s *cloudRunService) delete() {
 	execCommand(gcloudCommandBuild([]string{
 		"run",
 		"services",
@@ -57,8 +57,8 @@ func (s *CloudRunService) delete() {
 }
 
 // getURL calls the external gcloud SDK and gets the root URL of the Cloud Run Service associated with the current
-// CloudRunService.
-func (s *CloudRunService) getURL() string {
+// cloudRunService.
+func (s *cloudRunService) getURL() string {
 	if s.url == "" {
 		s.url = execCommand(gcloudCommandBuild([]string{
 			"run",
@@ -76,7 +76,7 @@ func (s *CloudRunService) getURL() string {
 
 // serviceName generates a Cloud Run service name for the provided sample. It concatenates the sample's name with a
 // random 10-character alphanumeric string.
-func serviceName(sample *Sample) string {
+func serviceName(sample *sample) string {
 	randBytes := make([]byte, cloudRunServiceNameRandSuffixLen/2)
 
 	_, err := rand.Read(randBytes)

@@ -28,10 +28,10 @@ const cloudRunServiceNameRandSuffixLen = 10
 // "gcloud" and the args are the ones provided in addition to a project flag and quiet flag.
 func gcloudCommandBuild(arg []string) *exec.Cmd {
 	var gcpProject string
-	if sample == nil {
+	if s == nil {
 		gcpProject = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	} else {
-		gcpProject = sample.googleCloudProject
+		gcpProject = s.googleCloudProject
 	}
 
 	arg = append(arg, fmt.Sprintf("--project=%s", gcpProject), "--quiet")
@@ -43,10 +43,10 @@ func gcloudCommandBuild(arg []string) *exec.Cmd {
 // execCommand executes an exec.Cmd. It redirects the commands stderr to this program's stderr and returns the output
 // in the form of a string.
 func execCommand(cmd *exec.Cmd) string {
-	if sample == nil {
+	if s == nil {
 		cmd.Dir = sampleDir
 	} else {
-		cmd.Dir = sample.dir
+		cmd.Dir = s.dir
 	}
 
 	cmd.Stderr = os.Stderr
