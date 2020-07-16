@@ -77,7 +77,7 @@ func validateEndpointOperation(operation *openapi3.Operation, endpoint string, h
 	return allTestsPassed
 }
 
-// makeTestRequest makes a request based on the . It returns a success bool based on whether the returned status code
+// makeTestRequest returns a success bool based on whether the returned status code
 // was included in the provided openapi3.Operation expected responses.
 func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation) bool {
 	client := &http.DefaultClient
