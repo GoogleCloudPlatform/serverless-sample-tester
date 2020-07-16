@@ -22,7 +22,7 @@ import (
 // sample represents a Google Cloud Platform sample and associated properties.
 type sample struct {
 	// The Google Cloud Project ID this sample will deploy to
-	googleCloudProject string
+	projectID string
 
 	// The local directory this sample is located in
 	dir string
@@ -41,8 +41,8 @@ type sample struct {
 // newSample creates a new sample object for the sample located in the provided local directory.
 func newSample(dir string) *sample {
 	s := sample{
-		googleCloudProject: os.Getenv("GOOGLE_CLOUD_PROJECT"),
-		dir:                dir,
+		projectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
+		dir:       dir,
 	}
 
 	s.service = newCloudRunService(&s)

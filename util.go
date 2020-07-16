@@ -31,7 +31,7 @@ func gcloudCommandBuild(arg []string) *exec.Cmd {
 	if s == nil {
 		gcpProject = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	} else {
-		gcpProject = s.googleCloudProject
+		gcpProject = s.projectID
 	}
 
 	arg = append(arg, fmt.Sprintf("--project=%s", gcpProject), "--quiet")

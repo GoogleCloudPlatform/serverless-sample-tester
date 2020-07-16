@@ -40,7 +40,7 @@ func newCloudContainerImage(sample *sample) *cloudContainerImage {
 
 // newCloudContainerImage creates a new cloudContainerImage for the provided sample.
 func (c *cloudContainerImage) url() string {
-	return fmt.Sprintf("gcr.io/%s/%s", c.sample.googleCloudProject, c.containerTag)
+	return fmt.Sprintf("gcr.io/%s/%s", c.sample.projectID, c.containerTag)
 }
 
 // delete deletes the container image off of the Container Registry.
