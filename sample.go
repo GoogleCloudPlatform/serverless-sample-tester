@@ -28,11 +28,11 @@ type sample struct {
 	dir string
 
 	// The cloudRunService this sample will deploy to
-	cloudRunService *cloudRunService
+	service *cloudRunService
 
 	// The cloudContainerImage that represents the location of this sample's build container image in the GCP Container
 	// Registry
-	cloudContainerImage *cloudContainerImage
+	container *cloudContainerImage
 
 	// The lifecycle for building and deploying this sample to Cloud Run
 	buildDeployLifecycle *lifecycle
@@ -40,31 +40,31 @@ type sample struct {
 
 // newSample creates a new sample object for the sample located in the provided local directory.
 func newSample(dir string) *sample {
-	sample := sample{
+	s := sample{
 		googleCloudProject: os.Getenv("GOOGLE_CLOUD_PROJECT"),
 		dir:                dir,
 	}
 
-	sample.cloudRunService = newCloudRunService(&sample)
-	sample.cloudContainerImage = newCloudContainerImage(&sample)
-	sample.buildDeployLifecycle = getLifecycle(&sample)
+	s.service = newCloudRunService(&s)
+	s.container = newCloudContainerImage(&s)
+	s.buildDeployLifecycle = getLifecycle(&s)
 
-	return &sample
+	return &s
 }
 
 // sampleName computes a sample name for a sample object. Right now, it's defined as a shortened version of the sample's
 // local directory. Its length is flexible based on the provided length of a suffix that will be appended to the end of
 // the name.
 func (s *sample) sampleName(suffixLen int) string {
-	result := strings.ReplaceAll(s.dir[len(s.dir)-(maxCloudRunServiceNameLen-suffixLen):], "/", "-")
+	n := strings.ReplaceAll(s.dir[len(s.dir)-(maxCloudRunServiceNameLen-suffixLen):], "/", "-")
 
-	if result[len(result)-1] == '-' {
-		result = result[:len(result)-1]
+	if n[len(n)-1] == '-' {
+		n = n[:len(n)-1]
 	}
 
-	if result[0] == '-' {
-		result = result[1:]
+	if n[0] == '-' {
+		n = n[1:]
 	}
 
-	return strings.ToLower(result)
+	return strings.ToLower(n)
 }

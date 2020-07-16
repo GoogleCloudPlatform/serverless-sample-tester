@@ -72,8 +72,8 @@ func root(cmd *cobra.Command, args []string) {
 
 	log.Println("Building and deploying sample to Cloud Run")
 	s.buildDeployLifecycle.execute()
-	defer s.cloudRunService.delete()
-	defer s.cloudContainerImage.delete()
+	defer s.service.delete()
+	defer s.container.delete()
 
 	log.Println("Getting identity token for service account")
 	identToken := execCommand(gcloudCommandBuild([]string{

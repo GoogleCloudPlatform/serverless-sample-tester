@@ -32,21 +32,21 @@ var identityToken string
 func validateEndpoints(paths *openapi3.Paths, identTok string) bool {
 	identityToken = identTok
 
-	success := true
+	s := true
 	for endpoint, pathItem := range *paths {
 		log.Printf("Testing %s endpoint\n", endpoint)
-		success = success && validateEndpointOperation(pathItem.Connect, endpoint, http.MethodConnect)
-		success = success && validateEndpointOperation(pathItem.Delete, endpoint, http.MethodDelete)
-		success = success && validateEndpointOperation(pathItem.Get, endpoint, http.MethodGet)
-		success = success && validateEndpointOperation(pathItem.Head, endpoint, http.MethodHead)
-		success = success && validateEndpointOperation(pathItem.Options, endpoint, http.MethodOptions)
-		success = success && validateEndpointOperation(pathItem.Patch, endpoint, http.MethodPatch)
-		success = success && validateEndpointOperation(pathItem.Post, endpoint, http.MethodPost)
-		success = success && validateEndpointOperation(pathItem.Put, endpoint, http.MethodPut)
-		success = success && validateEndpointOperation(pathItem.Trace, endpoint, http.MethodTrace)
+		s = s && validateEndpointOperation(pathItem.Connect, endpoint, http.MethodConnect)
+		s = s && validateEndpointOperation(pathItem.Delete, endpoint, http.MethodDelete)
+		s = s && validateEndpointOperation(pathItem.Get, endpoint, http.MethodGet)
+		s = s && validateEndpointOperation(pathItem.Head, endpoint, http.MethodHead)
+		s = s && validateEndpointOperation(pathItem.Options, endpoint, http.MethodOptions)
+		s = s && validateEndpointOperation(pathItem.Patch, endpoint, http.MethodPatch)
+		s = s && validateEndpointOperation(pathItem.Post, endpoint, http.MethodPost)
+		s = s && validateEndpointOperation(pathItem.Put, endpoint, http.MethodPut)
+		s = s && validateEndpointOperation(pathItem.Trace, endpoint, http.MethodTrace)
 	}
 
-	return success
+	return s
 }
 
 // validateEndpointOperation validates a single endpoint and a single HTTP method, and ensures that the request --
@@ -82,7 +82,7 @@ func validateEndpointOperation(operation *openapi3.Operation, endpoint string, h
 func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation) bool {
 	client := &http.DefaultClient
 
-	req, err := http.NewRequest(httpMethod, s.cloudRunService.getURL()+endpoint, reqBodyReader)
+	req, err := http.NewRequest(httpMethod, s.service.getURL()+endpoint, reqBodyReader)
 	if err != nil {
 		log.Panicf("Error creating http request: %v\n", err)
 	}

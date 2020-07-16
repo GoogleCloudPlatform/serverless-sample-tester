@@ -117,7 +117,7 @@ func getLifecycle(sample *sample) *lifecycle {
 func buildDefaultLifecycle(sample *sample) *lifecycle {
 	lifecycle := buildLifecycle()
 
-	gcrURL := sample.cloudContainerImage.url()
+	gcrURL := sample.container.url()
 	lifecycle.phaseMap["build"].goals = []*exec.Cmd{
 		gcloudCommandBuild([]string{
 			"builds",
@@ -130,7 +130,7 @@ func buildDefaultLifecycle(sample *sample) *lifecycle {
 		gcloudCommandBuild([]string{
 			"run",
 			"deploy",
-			sample.cloudRunService.name,
+			sample.service.name,
 			fmt.Sprintf("--image=%s", gcrURL),
 			"--platform=managed",
 			"--region=us-east4",
@@ -146,7 +146,7 @@ func buildDefaultLifecycle(sample *sample) *lifecycle {
 func buildDefaultJavaLifecycle(sample *sample) *lifecycle {
 	lifecycle := buildDefaultLifecycle(sample)
 
-	gcrURL := sample.cloudContainerImage.url()
+	gcrURL := sample.container.url()
 	lifecycle.phaseMap["build"].goals = []*exec.Cmd{
 		exec.Command("mvn",
 			"compile",
