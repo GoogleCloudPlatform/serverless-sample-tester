@@ -96,6 +96,9 @@ func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strin
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Panicf("Error reading http response body: %v\n", err)
+	}
 	defer resp.Body.Close()
 
 	statusCode := strconv.Itoa(resp.StatusCode)
