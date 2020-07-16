@@ -24,15 +24,10 @@ import (
 // Maximum length of a Cloud Run Service name.
 const maxCloudRunServiceNameLen = 53
 
-// cloudRunService represents a Cloud Run Service and holds its name and URL.
+// cloudRunService represents a Cloud Run service and stores its parameters.
 type cloudRunService struct {
-	// the associated sample
 	sample *sample
-
-	// the Service's name
 	name string
-
-	// the Service's root URL
 	url string
 }
 
