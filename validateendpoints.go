@@ -26,34 +26,50 @@ import (
 
 var identityToken string
 
+type test struct {
+	operation  *openapi3.Operation
+	httpMethod string
+}
+
 // validateEndpoints tests all paths (represented by openapi3.Paths) with all HTTP methods and given response bodies
 // and make sure they respond with the expected status code. Returns a success bool based on whether all the tests
 // passed.
-func validateEndpoints(paths *openapi3.Paths, identTok string) bool {
+func validateEndpoints(paths *openapi3.Paths, identTok string) (bool, error) {
 	identityToken = identTok
 
-	s := true
+	success := true
 	for endpoint, pathItem := range *paths {
 		log.Printf("Testing %s endpoint\n", endpoint)
-		s = s && validateEndpointOperation(pathItem.Connect, endpoint, http.MethodConnect)
-		s = s && validateEndpointOperation(pathItem.Delete, endpoint, http.MethodDelete)
-		s = s && validateEndpointOperation(pathItem.Get, endpoint, http.MethodGet)
-		s = s && validateEndpointOperation(pathItem.Head, endpoint, http.MethodHead)
-		s = s && validateEndpointOperation(pathItem.Options, endpoint, http.MethodOptions)
-		s = s && validateEndpointOperation(pathItem.Patch, endpoint, http.MethodPatch)
-		s = s && validateEndpointOperation(pathItem.Post, endpoint, http.MethodPost)
-		s = s && validateEndpointOperation(pathItem.Put, endpoint, http.MethodPut)
-		s = s && validateEndpointOperation(pathItem.Trace, endpoint, http.MethodTrace)
+		tests := []test{
+			{pathItem.Connect, http.MethodConnect},
+			{pathItem.Delete, http.MethodDelete},
+			{pathItem.Get, http.MethodGet},
+			{pathItem.Head, http.MethodHead},
+			{pathItem.Options, http.MethodOptions},
+			{pathItem.Patch, http.MethodPatch},
+			{pathItem.Post, http.MethodPost},
+			{pathItem.Put, http.MethodPut},
+			{pathItem.Trace, http.MethodTrace},
+		}
+
+		for _, t := range tests {
+			s, err := validateEndpointOperation(t.operation, endpoint, t.httpMethod)
+			if err != nil {
+				return s, err
+			}
+
+			success = s && success
+		}
 	}
 
-	return s
+	return success, nil
 }
 
-// validateEndpointOperation validates a single endpoint and a single HTTP method, and ensures that the request --
+// validateEndpointOperation v alidates a single endpoint and a single HTTP method, and ensures that the request --
 // including the provided sample request body -- elicits the expected status code.
-func validateEndpointOperation(operation *openapi3.Operation, endpoint string, httpMethod string) bool {
+func validateEndpointOperation(operation *openapi3.Operation, endpoint string, httpMethod string) (bool, error) {
 	if operation == nil {
-		return true
+		return true, nil
 	}
 	log.Printf("%s %s\n", httpMethod, endpoint)
 
@@ -71,20 +87,31 @@ func validateEndpointOperation(operation *openapi3.Operation, endpoint string, h
 		log.Printf("%s: %s", mimeType, reqBodyStr)
 
 		reqBodyReader := strings.NewReader(reqBodyStr)
-		allTestsPassed = allTestsPassed && makeTestRequest(httpMethod, endpoint, mimeType, reqBodyReader, operation)
+
+		s, err := makeTestRequest(httpMethod, endpoint, mimeType, reqBodyReader, operation)
+		if err != nil {
+			return s, err
+		}
+
+		allTestsPassed = allTestsPassed && s
 	}
 
-	return allTestsPassed
+	return allTestsPassed, nil
 }
 
 // makeTestRequest returns a success bool based on whether the returned status code
 // was included in the provided openapi3.Operation expected responses.
-func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation) bool {
+func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation) (success bool, err error) {
 	client := &http.DefaultClient
 
-	req, err := http.NewRequest(httpMethod, s.service.getURL()+endpoint, reqBodyReader)
+	serviceURL, err := s.service.getURL()
 	if err != nil {
-		log.Panicf("Error creating http request: %v\n", err)
+		return
+	}
+
+	req, err := http.NewRequest(httpMethod, serviceURL+endpoint, reqBodyReader)
+	if err != nil {
+		return
 	}
 
 	req.Header.Add("Authorization", "Bearer "+identityToken)
@@ -92,12 +119,12 @@ func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strin
 
 	resp, err := (*client).Do(req)
 	if err != nil {
-		log.Panicf("Error executing http request: %v\n", err)
+		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Panicf("Error reading http response body: %v\n", err)
+		return
 	}
 	defer resp.Body.Close()
 
@@ -106,11 +133,12 @@ func makeTestRequest(httpMethod, endpoint, mimeType string, reqBodyReader *strin
 
 	if val, ok := operation.Responses[statusCode]; ok {
 		log.Printf("Response description: %s\n", *val.Value.Description)
-		return true
+		success = true
 	} else {
 		log.Println("Unknown response description: FAIL")
 		log.Println("Dumping response body")
 		fmt.Println(string(body))
-		return false
 	}
+
+	return
 }

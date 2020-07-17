@@ -23,10 +23,15 @@ import (
 type lifecycle []*exec.Cmd
 
 // execute executes the commands of a lifecycle.
-func (l lifecycle) execute() {
+func (l lifecycle) execute() (err error) {
 	for _, cmd := range l {
-		execCommand(cmd)
+		_, err = execCommand(cmd)
+		if err != nil {
+			return
+		}
 	}
+
+	return
 }
 
 // getLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based

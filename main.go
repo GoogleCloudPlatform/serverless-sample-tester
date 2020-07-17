@@ -24,10 +24,11 @@ import (
 var (
 	s *sample
 
-	sampleDir          string
-	keepContainerImage bool
+	sampleDir string
 
 	allTestsPassed bool
+
+	err error
 )
 
 func main() {
@@ -38,49 +39,59 @@ func main() {
 		Run:   root,
 	}
 
-	if err := rootCmd.Execute(); err != nil {
-		log.Panicf("Error with cobra rootCmd Execution: %v\n", err)
+	if e := rootCmd.Execute(); e != nil {
+		log.Fatalf("Error with cobra rootCmd Execution: %v\n", err)
 	}
 
-	if allTestsPassed {
-		os.Exit(0)
-	} else {
-		os.Exit(1)
+	if !allTestsPassed || err != nil {
+		log.Fatalf("Error occured in the exectuion of this program: %v", err)
 	}
 }
 
 func root(cmd *cobra.Command, args []string) {
 	// Parse sample directory from command line argument
-	var err error
 	sampleDir, err = filepath.Abs(filepath.Dir(args[0]))
 	if err != nil {
-		log.Fatalf("Error parsing sample direcotry: %v\n", err)
+		return
 	}
 
 	log.Println("Setting up configuration values")
-	s = newSample(sampleDir)
+	s, err = newSample(sampleDir)
+	if err != nil {
+		return
+	}
 
 	log.Println("Loading test endpoints")
 	swagger := loadTestEndpoints()
 
 	log.Println("Activating service account")
-	execCommand(gcloudCommandBuild([]string{
+	_, err = execCommand(gcloudCommandBuild([]string{
 		"auth",
 		"activate-service-account",
 		os.ExpandEnv("--key-file=${GOOGLE_APPLICATION_CREDENTIALS}"),
 	}))
+	if err != nil {
+		return
+	}
 
 	log.Println("Building and deploying sample to Cloud Run")
-	s.buildDeployLifecycle.execute()
+	err = s.buildDeployLifecycle.execute()
 	defer s.service.delete()
 	defer s.container.delete()
+	if err != nil {
+		return
+	}
 
 	log.Println("Getting identity token for service account")
-	identToken := execCommand(gcloudCommandBuild([]string{
+	var identToken string
+	identToken, err = execCommand(gcloudCommandBuild([]string{
 		"auth",
 		"print-identity-token",
 	}))
+	if err != nil {
+		return
+	}
 
 	log.Println("Checking endpoints for expected results")
-	allTestsPassed = validateEndpoints(&swagger.Paths, identToken)
+	allTestsPassed, err = validateEndpoints(&swagger.Paths, identToken)
 }

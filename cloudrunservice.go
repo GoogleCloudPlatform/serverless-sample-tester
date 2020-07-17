@@ -18,7 +18,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"log"
 )
 
 // Maximum length of a Cloud Run Service name.
@@ -27,21 +26,28 @@ const maxCloudRunServiceNameLen = 53
 // cloudRunService represents a Cloud Run service and stores its parameters.
 type cloudRunService struct {
 	sample *sample
-	name string
-	url string
+	name   string
+	url    string
 }
 
 // newCloudRunService returns a new cloudRunService with the provided name.
-func newCloudRunService(sample *sample) *cloudRunService {
-	return &cloudRunService{
-		sample: sample,
-		name:   serviceName(sample),
+func newCloudRunService(sample *sample) (s *cloudRunService, err error) {
+	n, err := serviceName(sample)
+	if err != nil {
+		return
 	}
+
+	s = &cloudRunService{
+		sample: sample,
+		name:   n,
+	}
+
+	return
 }
 
 // delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current cloudRunService.
-func (s *cloudRunService) delete() {
-	execCommand(gcloudCommandBuild([]string{
+func (s *cloudRunService) delete() (err error) {
+	_, err = execCommand(gcloudCommandBuild([]string{
 		"run",
 		"services",
 		"delete",
@@ -49,36 +55,42 @@ func (s *cloudRunService) delete() {
 		"--region=us-east4",
 		"--platform=managed",
 	}))
+
+	return
 }
 
 // getURL calls the external gcloud SDK and gets the root URL of the Cloud Run Service associated with the current
 // cloudRunService.
-func (s *cloudRunService) getURL() string {
-	if s.url == "" {
-		s.url = execCommand(gcloudCommandBuild([]string{
-			"run",
-			"--platform=managed",
-			"--region=us-east4",
-			"services",
-			"describe",
-			s.name,
-			"--format=value(status.url)",
-		}))
+func (s *cloudRunService) getURL() (url string, err error) {
+	if s.url != "" {
+		return s.url, nil
 	}
 
-	return s.url
+	url, err = execCommand(gcloudCommandBuild([]string{
+		"run",
+		"--platform=managed",
+		"--region=us-east4",
+		"services",
+		"describe",
+		s.name,
+		"--format=value(status.url)",
+	}))
+
+	return
 }
 
 // serviceName generates a Cloud Run service name for the provided sample. It concatenates the sample's name with a
 // random 10-character alphanumeric string.
-func serviceName(sample *sample) string {
+func serviceName(sample *sample) (name string, err error) {
 	randBytes := make([]byte, cloudRunServiceNameRandSuffixLen/2)
 
-	_, err := rand.Read(randBytes)
+	_, err = rand.Read(randBytes)
 	if err != nil {
-		log.Panicf("Error generating crypto/rand bytes:  %v\n", err)
+		return
 	}
 
 	randSuffix := fmt.Sprintf("-%s", hex.EncodeToString(randBytes))
-	return fmt.Sprintf("%s%s", sample.sampleName(len(randSuffix)), randSuffix)
+	name = fmt.Sprintf("%s%s", sample.sampleName(len(randSuffix)), randSuffix)
+
+	return
 }

@@ -39,17 +39,26 @@ type sample struct {
 }
 
 // newSample creates a new sample object for the sample located in the provided local directory.
-func newSample(dir string) *sample {
-	s := sample{
+func newSample(dir string) (s *sample, err error) {
+	s = &sample{
 		projectID: os.Getenv("GOOGLE_CLOUD_PROJECT"),
 		dir:       dir,
 	}
 
-	s.service = newCloudRunService(&s)
-	s.container = newCloudContainerImage(&s)
-	s.buildDeployLifecycle = getLifecycle(&s)
+	service, err := newCloudRunService(s)
+	if err != nil {
+		return nil, err
+	}
 
-	return &s
+	image, err := newCloudContainerImage(s)
+	if err != nil {
+		return nil, err
+	}
+
+	s.service = service
+	s.container = image
+	s.buildDeployLifecycle = getLifecycle(s)
+	return
 }
 
 // sampleName computes a sample name for a sample object. Right now, it's defined as a shortened version of the sample's

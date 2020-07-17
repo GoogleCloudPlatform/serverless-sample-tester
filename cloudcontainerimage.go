@@ -29,13 +29,18 @@ type cloudContainerImage struct {
 }
 
 // newCloudContainerImage creates a new cloudContainerImage for the provided sample.
-func newCloudContainerImage(sample *sample) *cloudContainerImage {
-	cloudContainerImage := cloudContainerImage{
-		sample:       sample,
-		containerTag: cloudContainerImageTag(sample),
+func newCloudContainerImage(sample *sample) (c *cloudContainerImage, err error) {
+	tag, err := cloudContainerImageTag(sample)
+	if err != nil {
+		return
 	}
 
-	return &cloudContainerImage
+	c = &cloudContainerImage{
+		sample:       sample,
+		containerTag: tag,
+	}
+
+	return
 }
 
 // newCloudContainerImage creates a new cloudContainerImage for the provided sample.
@@ -44,18 +49,27 @@ func (c *cloudContainerImage) url() string {
 }
 
 // delete deletes the container image off of the Container Registry.
-func (c *cloudContainerImage) delete() {
-	execCommand(gcloudCommandBuild([]string{
+func (c *cloudContainerImage) delete() (err error) {
+	_, err = execCommand(gcloudCommandBuild([]string{
 		"container",
 		"images",
 		"delete",
 		c.url(),
 	}))
+
+	return
 }
 
 // cloudContainerImageTag creates a container image tag for the provided sample. It concatenates the sample's name
 // with a short SHA of the sample repository's HEAD commit.
-func cloudContainerImageTag(sample *sample) string {
-	shortSHASuffix := fmt.Sprintf("-%s", execCommand(exec.Command("git", "rev-parse", "--verify", "--short", "HEAD")))
-	return fmt.Sprintf("%s%s", sample.sampleName(len(shortSHASuffix)), shortSHASuffix)
+func cloudContainerImageTag(sample *sample) (tag string, err error) {
+	sha, err := execCommand(exec.Command("git", "rev-parse", "--verify", "--short", "HEAD"))
+	if err != nil {
+		return
+	}
+
+	shortSHASuffix := fmt.Sprintf("-%s", sha)
+	tag = fmt.Sprintf("%s%s", sample.sampleName(len(shortSHASuffix)), shortSHASuffix)
+
+	return
 }
