@@ -12,33 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package lifecycle
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"os"
 	"os/exec"
 )
 
-type lifecycle []*exec.Cmd
+// Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
+type Lifecycle []*exec.Cmd
 
-// execute executes the commands of a lifecycle.
-func (l lifecycle) execute() (err error) {
-	for _, cmd := range l {
-		_, err = execCommand(cmd)
+// Execute executes the commands of a lifecycle.
+func (l Lifecycle) Execute() error {
+	for _, c := range l {
+		_, err := util.ExecCommand(c)
 		if err != nil {
-			return
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
-// getLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based
+// GetLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func getLifecycle(sample *sample) lifecycle {
-	pomPath := fmt.Sprintf("%s/pom.xml", sample.dir)
-	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sample.dir)
+func GetLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
+	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
+	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sampleDir)
 
 	_, err := os.Stat(pomPath)
 	pomExists := err == nil
@@ -47,45 +49,44 @@ func getLifecycle(sample *sample) lifecycle {
 	dockerfileExists := err == nil
 
 	if pomExists && !dockerfileExists {
-		return buildDefaultJavaLifecycle(sample)
-	} else {
-		return buildDefaultLifecycle(sample)
+		return buildDefaultJavaLifecycle(serviceName, gcrURL)
 	}
+
+	return buildDefaultLifecycle(serviceName, gcrURL)
 }
 
 // buildDefaultLifecycle builds a build and deploy command lifecycle with reasonable defaults for a non-Java
 // project. It uses `gcloud builds submit` for building the samples container image and submitting it to the container
 // and `gcloud run deploy` for deploying it to Cloud Run.
-func buildDefaultLifecycle(sample *sample) lifecycle {
-	gcrURL := sample.container.url()
-	return lifecycle{
-		gcloudCommandBuild([]string{
+func buildDefaultLifecycle(serviceName, gcrURL string) Lifecycle {
+	return Lifecycle{
+		util.GcloudCommandBuild(
 			"builds",
 			"submit",
 			fmt.Sprintf("--tag=%s", gcrURL),
-		}),
-		gcloudCommandBuild([]string{
+		),
+		util.GcloudCommandBuild(
 			"run",
 			"deploy",
-			sample.service.name,
+			serviceName,
 			fmt.Sprintf("--image=%s", gcrURL),
 			"--platform=managed",
 			"--region=us-east4",
-		}),
+		),
 	}
 }
 
 // buildDefaultJavaLifecycle builds a build and deploy command lifecycle with reasonable defaults for Java
 // samples. It uses `com.google.cloud.tools:jib-maven-plugin:2.0.0:build` for building the samples container image and
 // submitting it to the container and `gcloud run deploy` for deploying it to Cloud Run.
-func buildDefaultJavaLifecycle(sample *sample) lifecycle {
-	gcrURL := sample.container.url()
+func buildDefaultJavaLifecycle(serviceName, gcrURL string) Lifecycle {
+	l := buildDefaultLifecycle(serviceName, gcrURL)
 
-	return lifecycle{
-		exec.Command("mvn",
-			"compile",
-			"com.google.cloud.tools:jib-maven-plugin:2.0.0:build",
-			fmt.Sprintf("-Dimage=%s", gcrURL),
-		),
-	}
+	l[0] = exec.Command("mvn",
+		"compile",
+		"com.google.cloud.tools:jib-maven-plugin:2.0.0:build",
+		fmt.Sprintf("-Dimage=%s", gcrURL),
+	)
+
+	return l
 }

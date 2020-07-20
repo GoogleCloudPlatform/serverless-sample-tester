@@ -12,86 +12,77 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package sst
 
 import (
+	"fmt"
+	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/sample"
+	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"github.com/spf13/cobra"
 	"log"
-	"os"
 	"path/filepath"
 )
 
-var (
-	s *sample
-
-	sampleDir string
-
-	allTestsPassed bool
-
-	err error
-)
-
-func main() {
-	rootCmd := &cobra.Command{
+// NewCommand creates the root command.
+func NewCommand() *cobra.Command {
+	return &cobra.Command{
 		Use:   "sst [sample-dir]",
 		Short: "An end-to-end tester for GCP samples",
 		Args:  cobra.ExactArgs(1),
-		Run:   root,
-	}
-
-	if e := rootCmd.Execute(); e != nil {
-		log.Fatalf("Error with cobra rootCmd Execution: %v\n", err)
-	}
-
-	if !allTestsPassed || err != nil {
-		log.Fatalf("Error occured in the exectuion of this program: %v", err)
+		RunE:  root,
 	}
 }
 
-func root(cmd *cobra.Command, args []string) {
+// root is responsible for the root command. It handles the application flow.
+func root(cmd *cobra.Command, args []string) error {
 	// Parse sample directory from command line argument
-	sampleDir, err = filepath.Abs(filepath.Dir(args[0]))
+	sampleDir, err := filepath.Abs(filepath.Dir(args[0]))
 	if err != nil {
-		return
+		return err
 	}
+	util.SetCommandsDir(sampleDir)
 
 	log.Println("Setting up configuration values")
-	s, err = newSample(sampleDir)
+	s, err := sample.NewSample(sampleDir)
 	if err != nil {
-		return
+		return err
 	}
 
 	log.Println("Loading test endpoints")
-	swagger := loadTestEndpoints()
-
-	log.Println("Activating service account")
-	_, err = execCommand(gcloudCommandBuild([]string{
-		"auth",
-		"activate-service-account",
-		os.ExpandEnv("--key-file=${GOOGLE_APPLICATION_CREDENTIALS}"),
-	}))
-	if err != nil {
-		return
-	}
+	swagger := util.LoadTestEndpoints()
 
 	log.Println("Building and deploying sample to Cloud Run")
-	err = s.buildDeployLifecycle.execute()
-	defer s.service.delete()
-	defer s.container.delete()
+	err = s.BuildDeployLifecycle.Execute()
+	defer s.Service.Delete()
+	defer s.DeleteCloudContainerImage()
 	if err != nil {
-		return
+		return err
 	}
 
 	log.Println("Getting identity token for service account")
 	var identToken string
-	identToken, err = execCommand(gcloudCommandBuild([]string{
+	identToken, err = util.ExecCommand(util.GcloudCommandBuild(
 		"auth",
 		"print-identity-token",
-	}))
+	))
 	if err != nil {
-		return
+		return err
 	}
 
 	log.Println("Checking endpoints for expected results")
-	allTestsPassed, err = validateEndpoints(&swagger.Paths, identToken)
+	serviceURL, err := s.Service.URL()
+	if err != nil {
+		return err
+	}
+
+	allTestsPassed, err := util.ValidateEndpoints(serviceURL, &swagger.Paths, identToken)
+	if err != nil {
+		return err
+	}
+
+	if !allTestsPassed {
+		return fmt.Errorf("all tests did not pass")
+	}
+
+	return nil
 }

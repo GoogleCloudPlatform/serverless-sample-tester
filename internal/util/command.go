@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package util
 
 import (
 	"fmt"
@@ -22,33 +22,27 @@ import (
 	"strings"
 )
 
-const cloudRunServiceNameRandSuffixLen = 10
+// The directory in which all of the exec.Cmds will be run.
+var commandsDir string
 
-// gcloudCommandBuildcreates an exec.Cmd that calls the external gcloud executable. The exec.Cmd's name is set to
+// SetCommandsDir is the setter method for commandsDir.
+func SetCommandsDir(d string) {
+	commandsDir = d
+}
+
+// GcloudCommandBuild creates an exec.Cmd that calls the external gcloud executable. The exec.Cmd's name is set to
 // "gcloud" and the args are the ones provided in addition to a project flag and quiet flag.
-func gcloudCommandBuild(arg []string) *exec.Cmd {
-	var gcpProject string
-	if s == nil {
-		gcpProject = os.Getenv("GOOGLE_CLOUD_PROJECT")
-	} else {
-		gcpProject = s.projectID
-	}
-
-	arg = append(arg, fmt.Sprintf("--project=%s", gcpProject), "--quiet")
+func GcloudCommandBuild(arg ...string) *exec.Cmd {
+	arg = append(arg, "--quiet")
 	cmd := exec.Command("gcloud", arg...)
 
 	return cmd
 }
 
-// execCommand executes an exec.Cmd. It redirects the commands stderr to this program's stderr and returns the output
-// in the form of a string.
-func execCommand(cmd *exec.Cmd) (out string, err error) {
-	if s == nil {
-		cmd.Dir = sampleDir
-	} else {
-		cmd.Dir = s.dir
-	}
-
+// ExecCommand executes an exec.Cmd. It redirects the command's stderr to this program's stderr and returns the output
+// in the form of a string. The command will be run in commandsDir.
+func ExecCommand(cmd *exec.Cmd) (out string, err error) {
+	cmd.Dir = commandsDir
 	cmd.Stderr = os.Stderr
 
 	log.Println("Executing ", cmd.String())

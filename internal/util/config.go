@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package util
 
 import (
 	"github.com/getkin/kin-openapi/openapi3"
@@ -21,9 +21,9 @@ import (
 
 const passResponseDescription = "PASS"
 
-// loadTestEndpoints loads a default test endpoint request (a GET / request expecting a 200 status code) into an
+// LoadTestEndpoints loads a default test endpoint request (a GET / request expecting a 200 status code) into an
 // openapi3.Swagger object (see github.com/getkin/kin-openapi).
-func loadTestEndpoints() *openapi3.Swagger {
+func LoadTestEndpoints() *openapi3.Swagger {
 	prd := passResponseDescription
 
 	log.Println("Using default test endpoint (GET /)")

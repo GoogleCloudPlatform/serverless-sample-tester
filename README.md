@@ -16,7 +16,7 @@ identifying bugs that arise when samples are deployed to Cloud Run. It will:
 ## Build
 
 ```bash
-go build -o sst *.go
+go build -o sst cmd/sst/main.go
 ```
 
 ## Usage
@@ -24,3 +24,5 @@ go build -o sst *.go
 ```bash
 ./sst [sample-dir]
 ```
+
+Make sure to authorize the gcloud SDK and set a default project before running this program.
