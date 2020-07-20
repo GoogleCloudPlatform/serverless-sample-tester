@@ -35,7 +35,7 @@ type CloudRunService struct {
 }
 
 // Delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current cloudRunService.
-func (s *CloudRunService) Delete() (err error) {
+func (s CloudRunService) Delete() (err error) {
 	_, err = util.ExecCommand(util.GcloudCommandBuild(
 		"run",
 		"services",
@@ -64,6 +64,7 @@ func (s *CloudRunService) URL() (string, error) {
 		s.Name,
 		"--format=value(status.url)",
 	))
+	s.url = url
 
 	return url, err
 }
