@@ -25,4 +25,5 @@ go build -o sst cmd/main.go
 ./sst [sample-dir]
 ```
 
-Make sure to authorize the gcloud SDK and set a default project before running this program.
+Make sure to authorize the gcloud SDK and set a default project and Cloud Run region before running this program. A
+default Cloud Run region can be set by setting the `run/region` gcloud property.
