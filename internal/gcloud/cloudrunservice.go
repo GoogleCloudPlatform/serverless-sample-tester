@@ -41,7 +41,6 @@ func (s CloudRunService) Delete() (err error) {
 		"services",
 		"delete",
 		s.Name,
-		"--region=us-east4",
 		"--platform=managed",
 	))
 
@@ -58,7 +57,6 @@ func (s *CloudRunService) URL() (string, error) {
 	url, err := util.ExecCommand(util.GcloudCommandBuild(
 		"run",
 		"--platform=managed",
-		"--region=us-east4",
 		"services",
 		"describe",
 		s.Name,

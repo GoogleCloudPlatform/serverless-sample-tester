@@ -71,7 +71,6 @@ func buildDefaultLifecycle(serviceName, gcrURL string) Lifecycle {
 			serviceName,
 			fmt.Sprintf("--image=%s", gcrURL),
 			"--platform=managed",
-			"--region=us-east4",
 		),
 	}
 }
