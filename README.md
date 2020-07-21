@@ -27,3 +27,21 @@ go build -o sst cmd/main.go
 
 Make sure to authorize the gcloud SDK and set a default project and Cloud Run region before running this program. A
 default Cloud Run region can be set by setting the `run/region` gcloud property.
+
+### README parsing
+If you'd like, make sure to include the following comment code tag immediately preceding code blocks to customize how
+the program should build and deploy your sample:
+
+```text
+[//]: # ({t-run-linuxmacos})
+```
+
+For example:
+````text
+[//]: # ({t-run-build-linuxmacos})
+```bash
+gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
+```
+
+If code tags aren't added to your README, the program will fall back to reasonable defaults to build and deploy your
+sample to Cloud Run based on whether your sample is java-based and doesn't have a Dockerfile or isn't.

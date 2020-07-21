@@ -17,6 +17,7 @@ package lifecycle
 import (
 	"fmt"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -40,22 +41,38 @@ func (l Lifecycle) Execute(commandsDir string) error {
 	return nil
 }
 
-// NewLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based
+
+// NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
+// those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
 func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
+	readmePath := fmt.Sprintf("%s/README.md", sampleDir)
+
+	_, err := os.Stat(readmePath)
+	readmeExists := err == nil
+
+	if readmeExists {
+		if lifecycle, err := parseREADME(readmePath, serviceName, gcrURL); err == nil {
+			log.Println("Using build and deploy commands found in README")
+			return lifecycle
+		}
+	}
+
 	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
 	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sampleDir)
 
-	_, err := os.Stat(pomPath)
+	_, err = os.Stat(pomPath)
 	pomExists := err == nil
 
 	_, err = os.Stat(dockerfilePath)
 	dockerfileExists := err == nil
 
 	if pomExists && !dockerfileExists {
+		log.Println("Using default build and deploy commands for java samples without a Dockerfile")
 		return buildDefaultJavaLifecycle(serviceName, gcrURL)
 	}
 
+	log.Println("Using default build and deploy commands for non-java samples or java samples with a Dockerfile")
 	return buildDefaultLifecycle(serviceName, gcrURL)
 }
 
