@@ -33,12 +33,12 @@ If you'd like, make sure to include the following comment code tag immediately p
 the program should build and deploy your sample:
 
 ```text
-[//]: # ({t-run-linuxmacos})
+[//]: # ({sst-run-linuxmacos})
 ```
 
 For example:
 ````text
-[//]: # ({t-run-build-linuxmacos})
+[//]: # ({sst-run-build-linuxmacos})
 ```bash
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```

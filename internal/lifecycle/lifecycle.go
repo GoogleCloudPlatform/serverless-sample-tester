@@ -52,10 +52,12 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 	readmeExists := err == nil
 
 	if readmeExists {
-		if lifecycle, err := parseREADME(readmePath, serviceName, gcrURL); err == nil {
+		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
+		if err == nil {
 			log.Println("Using build and deploy commands found in README")
 			return lifecycle
 		}
+		fmt.Printf("Failed parsing README: %v\n", err)
 	}
 
 	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
