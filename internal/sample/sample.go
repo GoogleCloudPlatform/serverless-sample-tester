@@ -24,7 +24,6 @@ import (
 	"unicode"
 )
 
-//
 const maxCloudContainerImageTagLen = 53
 
 // Sample represents a Google Cloud Platform sample and associated properties.
@@ -50,30 +49,31 @@ func NewSample(dir string) (*Sample, error) {
 
 	containerTag, err := cloudContainerImageTag(name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[sample.NewSample] generating Container Registry container image tag: %w", err)
 	}
 
 	projectID, err := util.ExecCommand(util.GcloudCommandBuild("config", "get-value", "core/project"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[sample.NewSample] getting gcloud default project: %w", err)
 	}
 	cloudContainerImageURL := fmt.Sprintf("gcr.io/%s/%s", projectID, containerTag)
 
 	serviceName, err := gcloud.ServiceName(name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[sample.NewSample] generating Cloud Run Service name: %w", err)
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
 	buildDeployLifecycle := lifecycle.GetLifecycle(dir, service.Name, cloudContainerImageURL)
 
-	return &Sample{
+	s := &Sample{
 		Name:                   name,
 		Dir:                    dir,
 		Service:                service,
 		BuildDeployLifecycle:   buildDeployLifecycle,
 		cloudContainerImageURL: cloudContainerImageURL,
-	}, nil
+	}
+	return s, nil
 }
 
 // sampleName computes a sample name for a sample object. Right now, it's defined as a shortened version of the sample's
@@ -85,23 +85,27 @@ func sampleName(dir string) string {
 }
 
 // DeleteCloudContainerImage deletes the sample's container image off of the Container Registry.
-func (s *Sample) DeleteCloudContainerImage() (err error) {
-	_, err = util.ExecCommand(util.GcloudCommandBuild(
+func (s *Sample) DeleteCloudContainerImage() error {
+	_, err := util.ExecCommand(util.GcloudCommandBuild(
 		"container",
 		"images",
 		"delete",
 		s.cloudContainerImageURL,
 	))
 
-	return
+	if err != nil {
+		return fmt.Errorf("[Sample.DeleteCloudContainerImage] deleting Container Registry container image: %w", err)
+	}
+
+	return nil
 }
 
 // cloudContainerImageTag creates a container image tag for the provided sample. It concatenates the sample's name
 // with a short SHA of the sample repository's HEAD commit.
-func cloudContainerImageTag(sampleName string) (tag string, err error) {
+func cloudContainerImageTag(sampleName string) (string, error) {
 	sha, err := util.ExecCommand(exec.Command("git", "rev-parse", "--verify", "--short", "HEAD"))
 	if err != nil {
-		return
+		return "", fmt.Errorf("[sample.cloudContainerImageTag] getting short SHA for sample repository: %w", err)
 	}
 
 	l := maxCloudContainerImageTagLen - len(sha) - 1
@@ -110,6 +114,6 @@ func cloudContainerImageTag(sampleName string) (tag string, err error) {
 		return !unicode.IsLetter(r)
 	})
 
-	tag = sampleName + "-" + sha
-	return
+	tag := sampleName + "-" + sha
+	return tag, nil
 }

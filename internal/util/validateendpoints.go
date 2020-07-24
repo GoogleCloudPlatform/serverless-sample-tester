@@ -53,7 +53,7 @@ func ValidateEndpoints(serviceURL string, paths *openapi3.Paths, identityToken s
 		for _, t := range tests {
 			s, err := validateEndpointOperation(endpointURL, t.operation, t.httpMethod, identityToken)
 			if err != nil {
-				return s, err
+				return s, fmt.Errorf("[util.ValidateEndpoints] testing %s requests on %s: %w", t.httpMethod, endpointURL, err)
 			}
 
 			success = s && success
@@ -75,7 +75,12 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 		log.Println("Sending empty request body")
 		reqBodyReader := strings.NewReader("")
 
-		return makeTestRequest(endpointURL, httpMethod, "", reqBodyReader, operation, identityToken)
+		s, err := makeTestRequest(endpointURL, httpMethod, "", reqBodyReader, operation, identityToken)
+		if err != nil {
+			return s, fmt.Errorf("[util.validateEndpointOperation] testing %s request on %s: %w", httpMethod, endpointURL, err)
+		}
+
+		return s, nil
 	}
 
 	reqBodies := operation.RequestBody.Value.Content
@@ -88,7 +93,7 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 
 		s, err := makeTestRequest(endpointURL, httpMethod, mimeType, reqBodyReader, operation, identityToken)
 		if err != nil {
-			return s, err
+			return s, fmt.Errorf("[util.validateEndpointOperation] testing %s %s request on %s: %w", httpMethod, mimeType, endpointURL, err)
 		}
 
 		allTestsPassed = allTestsPassed && s
@@ -99,12 +104,12 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 
 // makeTestRequest returns a success bool based on whether the returned status code  was included in the provided
 // openapi3.Operation expected responses.
-func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation, identityToken string) (success bool, err error) {
+func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation, identityToken string) (bool, error) {
 	client := &http.DefaultClient
 
 	req, err := http.NewRequest(httpMethod, endpointURL, reqBodyReader)
 	if err != nil {
-		return
+		return false, fmt.Errorf("[util.makeTestRequest] creating an http.Request: %w", err)
 	}
 
 	req.Header.Add("Authorization", "Bearer "+identityToken)
@@ -112,13 +117,13 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 
 	resp, err := (*client).Do(req)
 	if err != nil {
-		return
+		return false, fmt.Errorf("[util.makeTestRequest]: creating executing a http.Request: %w", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		return
+		return false, fmt.Errorf("[util.makeTestRequest]: reading http.Response: %w", err)
 	}
 
 	statusCode := strconv.Itoa(resp.StatusCode)
@@ -126,12 +131,12 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 
 	if val, ok := operation.Responses[statusCode]; ok {
 		log.Printf("Response description: %s\n", *val.Value.Description)
-		success = true
-	} else {
-		log.Println("Unknown response description: FAIL")
-		log.Println("Dumping response body")
-		fmt.Println(string(body))
+		return true, nil
 	}
 
-	return
+	log.Println("Unknown response description: FAIL")
+	log.Println("Dumping response body")
+	fmt.Println(string(body))
+
+	return false, nil
 }

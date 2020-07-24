@@ -16,7 +16,7 @@ identifying bugs that arise when samples are deployed to Cloud Run. It will:
 ## Build
 
 ```bash
-go build -o sst cmd/sst/main.go
+go build -o sst cmd/main.go
 ```
 
 ## Usage

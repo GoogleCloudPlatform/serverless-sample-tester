@@ -41,18 +41,18 @@ func GcloudCommandBuild(arg ...string) *exec.Cmd {
 
 // ExecCommand executes an exec.Cmd. It redirects the command's stderr to this program's stderr and returns the output
 // in the form of a string. The command will be run in commandsDir.
-func ExecCommand(cmd *exec.Cmd) (out string, err error) {
+func ExecCommand(cmd *exec.Cmd) (string, error) {
 	cmd.Dir = commandsDir
 	cmd.Stderr = os.Stderr
 
-	log.Println("Executing ", cmd.String())
+	log.Printf("Executing %v\n", cmd)
 
 	b, err := cmd.Output()
+	output := strings.TrimSpace(string(b))
 	if err != nil {
-		fmt.Println(string(b))
-		return
+		fmt.Println(output)
+		return output, fmt.Errorf("[util.ExecCommand] error executing external command %v: %w", cmd, err)
 	}
 
-	out = strings.TrimSpace(string(b))
-	return
+	return output, nil
 }

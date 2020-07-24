@@ -17,16 +17,16 @@ package gcloud
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"strings"
 	"unicode"
 )
 
-// Maximum length of a Cloud Run Service name.
-const maxCloudRunServiceNameLen = 53
-
-// Length of the random suffix at the end of the Cloud Run Service name.
-const cloudRunServiceNameRandSuffixLen = 10
+const (
+	maxCloudRunServiceNameLen        = 53
+	cloudRunServiceNameRandSuffixLen = 10
+)
 
 // CloudRunService represents a Cloud Run service and stores its parameters.
 type CloudRunService struct {
@@ -35,8 +35,8 @@ type CloudRunService struct {
 }
 
 // Delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current cloudRunService.
-func (s CloudRunService) Delete() (err error) {
-	_, err = util.ExecCommand(util.GcloudCommandBuild(
+func (s CloudRunService) Delete() error {
+	_, err := util.ExecCommand(util.GcloudCommandBuild(
 		"run",
 		"services",
 		"delete",
@@ -44,7 +44,11 @@ func (s CloudRunService) Delete() (err error) {
 		"--platform=managed",
 	))
 
-	return
+	if err != nil {
+		return fmt.Errorf("[CloudRunService.delete] deleting Cloud Run Service: %w", err)
+	}
+
+	return nil
 }
 
 // URL calls the external gcloud SDK and gets the root URL of the Cloud Run Service associated with the current
@@ -62,19 +66,23 @@ func (s *CloudRunService) URL() (string, error) {
 		s.Name,
 		"--format=value(status.url)",
 	))
-	s.url = url
 
+	if err != nil {
+		return "", fmt.Errorf("[CloudRunService.URL] getting Cloud Run Service URL: %w", err)
+	}
+
+	s.url = url
 	return url, err
 }
 
 // ServiceName generates a Cloud Run service name for the provided sample. It concatenates the sample's name with a
-// random 10-character alphanumeric string.
+// random alphanumeric string.
 func ServiceName(sampleName string) (string, error) {
 	randBytes := make([]byte, cloudRunServiceNameRandSuffixLen/2)
 
 	_, err := rand.Read(randBytes)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("[gcloud.ServiceName] getting crypto/rand bytes: %w", err)
 	}
 
 	randSuffix := hex.EncodeToString(randBytes)

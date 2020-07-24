@@ -23,18 +23,8 @@ import (
 	"path/filepath"
 )
 
-// NewCommand creates the root command.
-func NewCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "sst [sample-dir]",
-		Short: "An end-to-end tester for GCP samples",
-		Args:  cobra.ExactArgs(1),
-		RunE:  root,
-	}
-}
-
-// root is responsible for the root command. It handles the application flow.
-func root(cmd *cobra.Command, args []string) error {
+// Root is responsible for the root command. It handles the application flow.
+func Root(cmd *cobra.Command, args []string) error {
 	// Parse sample directory from command line argument
 	sampleDir, err := filepath.Abs(filepath.Dir(args[0]))
 	if err != nil {
@@ -59,7 +49,7 @@ func root(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	log.Println("Getting identity token for service account")
+	log.Println("Getting identity token for gcloud auhtorized account")
 	var identToken string
 	identToken, err = util.ExecCommand(util.GcloudCommandBuild(
 		"auth",

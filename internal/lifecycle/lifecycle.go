@@ -29,7 +29,7 @@ func (l Lifecycle) Execute() error {
 	for _, c := range l {
 		_, err := util.ExecCommand(c)
 		if err != nil {
-			return err
+			return fmt.Errorf("[Lifecycle.Execute] executing lifecycle command: %w", err)
 		}
 	}
 

@@ -16,11 +16,17 @@ package main
 
 import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/cmd/sst"
+	"github.com/spf13/cobra"
 	"log"
 )
 
 func main() {
-	rootCmd := sst.NewCommand()
+	rootCmd := &cobra.Command{
+		Use:   "sst [sample-dir]",
+		Short: "An end-to-end tester for GCP samples",
+		Args:  cobra.ExactArgs(1),
+		RunE:  sst.Root,
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Error ocurred in the execution of this program: %v\n", err)
