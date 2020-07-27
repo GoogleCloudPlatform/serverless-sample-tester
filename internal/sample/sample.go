@@ -47,12 +47,16 @@ type Sample struct {
 func NewSample(dir string) (*Sample, error) {
 	name := sampleName(dir)
 
-	containerTag, err := cloudContainerImageTag(name)
+	containerTag, err := cloudContainerImageTag(name, dir)
 	if err != nil {
 		return nil, fmt.Errorf("[sample.NewSample] generating Container Registry container image tag: %w", err)
 	}
 
-	projectID, err := util.ExecCommand(util.GcloudCommandBuild("config", "get-value", "core/project"))
+	a := append([]string{
+		"config", "get-value", "core/project",
+	}, util.GcloudCommonFlags...)
+	projectID, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
+
 	if err != nil {
 		return nil, fmt.Errorf("[sample.NewSample] getting gcloud default project: %w", err)
 	}
@@ -86,12 +90,13 @@ func sampleName(dir string) string {
 
 // DeleteCloudContainerImage deletes the sample's container image off of the Container Registry.
 func (s *Sample) DeleteCloudContainerImage() error {
-	_, err := util.ExecCommand(util.GcloudCommandBuild(
+	a := append([]string{
 		"container",
 		"images",
 		"delete",
 		s.cloudContainerImageURL,
-	))
+	}, util.GcloudCommonFlags...)
+	_, err := util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
 
 	if err != nil {
 		return fmt.Errorf("[Sample.DeleteCloudContainerImage] deleting Container Registry container image: %w", err)
@@ -102,8 +107,8 @@ func (s *Sample) DeleteCloudContainerImage() error {
 
 // cloudContainerImageTag creates a container image tag for the provided sample. It concatenates the sample's name
 // with a short SHA of the sample repository's HEAD commit.
-func cloudContainerImageTag(sampleName string) (string, error) {
-	sha, err := util.ExecCommand(exec.Command("git", "rev-parse", "--verify", "--short", "HEAD"))
+func cloudContainerImageTag(sampleName string, sampleDir string) (string, error) {
+	sha, err := util.ExecCommand(exec.Command("git", "rev-parse", "--verify", "--short", "HEAD"), sampleDir)
 	if err != nil {
 		return "", fmt.Errorf("[sample.cloudContainerImageTag] getting short SHA for sample repository: %w", err)
 	}

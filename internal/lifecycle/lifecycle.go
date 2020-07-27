@@ -24,10 +24,10 @@ import (
 // Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
 type Lifecycle []*exec.Cmd
 
-// Execute executes the commands of a lifecycle.
-func (l Lifecycle) Execute() error {
+// Execute executes the commands of a lifecycle in the provided directory.
+func (l Lifecycle) Execute(commandsDir string) error {
 	for _, c := range l {
-		_, err := util.ExecCommand(c)
+		_, err := util.ExecCommand(c, commandsDir)
 		if err != nil {
 			return fmt.Errorf("[Lifecycle.Execute] executing lifecycle command: %w", err)
 		}
@@ -59,19 +59,23 @@ func GetLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 // project. It uses `gcloud builds submit` for building the samples container image and submitting it to the container
 // and `gcloud run deploy` for deploying it to Cloud Run.
 func buildDefaultLifecycle(serviceName, gcrURL string) Lifecycle {
+	a0 := append([]string{
+		"builds",
+		"submit",
+		fmt.Sprintf("--tag=%s", gcrURL),
+	}, util.GcloudCommonFlags...)
+
+	a1 := append([]string{
+		"run",
+		"deploy",
+		serviceName,
+		fmt.Sprintf("--image=%s", gcrURL),
+		"--platform=managed",
+	}, util.GcloudCommonFlags...)
+
 	return Lifecycle{
-		util.GcloudCommandBuild(
-			"builds",
-			"submit",
-			fmt.Sprintf("--tag=%s", gcrURL),
-		),
-		util.GcloudCommandBuild(
-			"run",
-			"deploy",
-			serviceName,
-			fmt.Sprintf("--image=%s", gcrURL),
-			"--platform=managed",
-		),
+		exec.Command("gcloud", a0...),
+		exec.Command("gcloud", a1...),
 	}
 }
 

@@ -15,44 +15,41 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
-	"os"
 	"os/exec"
 	"strings"
 )
 
-// The directory in which all of the exec.Cmds will be run.
-var commandsDir string
-
-// SetCommandsDir is the setter method for commandsDir.
-func SetCommandsDir(d string) {
-	commandsDir = d
+// GcloudCommonFlags is a slice of common flags that should be added as arguments to all executions of the external
+// gcloud command.
+var GcloudCommonFlags = []string{
+	"--quiet",
 }
 
-// GcloudCommandBuild creates an exec.Cmd that calls the external gcloud executable. The exec.Cmd's name is set to
-// "gcloud" and the args are the ones provided in addition to a project flag and quiet flag.
-func GcloudCommandBuild(arg ...string) *exec.Cmd {
-	arg = append(arg, "--quiet")
-	cmd := exec.Command("gcloud", arg...)
+// ExecCommand executes an exec.Cmd. If the command exits successfully, its stdout will be returned. If there's an
+// error, the command's combined stdout and stderr will be returned in an error. The command will be run in the provided
+// directory.
+func ExecCommand(cmd *exec.Cmd, dir string) (string, error) {
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	var stdcombined bytes.Buffer
 
-	return cmd
-}
+	cmd.Dir = dir
 
-// ExecCommand executes an exec.Cmd. It redirects the command's stderr to this program's stderr and returns the output
-// in the form of a string. The command will be run in commandsDir.
-func ExecCommand(cmd *exec.Cmd) (string, error) {
-	cmd.Dir = commandsDir
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = io.MultiWriter(&stdout, &stdcombined)
+	cmd.Stderr = io.MultiWriter(&stderr, &stdcombined)
 
 	log.Printf("Executing %v\n", cmd)
 
-	b, err := cmd.Output()
-	output := strings.TrimSpace(string(b))
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println(output)
-		return output, fmt.Errorf("[util.ExecCommand] error executing external command %v: %w", cmd, err)
+		out := strings.TrimSpace(string(stdcombined.Bytes()))
+		return "", fmt.Errorf("[util.ExecCommand] error executing external command %v:\n%s\n%w", cmd, out, err)
 	}
 
-	return output, nil
+	out := strings.TrimSpace(string(stdout.Bytes()))
+	return out, nil
 }

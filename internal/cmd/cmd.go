@@ -20,6 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"github.com/spf13/cobra"
 	"log"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -30,7 +31,6 @@ func Root(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	util.SetCommandsDir(sampleDir)
 
 	log.Println("Setting up configuration values")
 	s, err := sample.NewSample(sampleDir)
@@ -42,8 +42,8 @@ func Root(cmd *cobra.Command, args []string) error {
 	swagger := util.LoadTestEndpoints()
 
 	log.Println("Building and deploying sample to Cloud Run")
-	err = s.BuildDeployLifecycle.Execute()
-	defer s.Service.Delete()
+	err = s.BuildDeployLifecycle.Execute(s.Dir)
+	defer s.Service.Delete(s.Dir)
 	defer s.DeleteCloudContainerImage()
 	if err != nil {
 		return fmt.Errorf("[cmd.Root] building and deploying sample to Cloud Run: %w", err)
@@ -51,16 +51,19 @@ func Root(cmd *cobra.Command, args []string) error {
 
 	log.Println("Getting identity token for gcloud auhtorized account")
 	var identToken string
-	identToken, err = util.ExecCommand(util.GcloudCommandBuild(
+
+	a := append([]string{
 		"auth",
 		"print-identity-token",
-	))
+	}, util.GcloudCommonFlags...)
+	identToken, err = util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
+
 	if err != nil {
 		return fmt.Errorf("[cmd.Root] getting identity token for gcloud auhtorized account: %w", err)
 	}
 
 	log.Println("Checking endpoints for expected results")
-	serviceURL, err := s.Service.URL()
+	serviceURL, err := s.Service.URL(s.Dir)
 	if err != nil {
 		return fmt.Errorf("[cmd.Root] getting Cloud Run service URL: %w", err)
 	}
