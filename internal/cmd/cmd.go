@@ -52,10 +52,10 @@ func Root(cmd *cobra.Command, args []string) error {
 	log.Println("Getting identity token for gcloud auhtorized account")
 	var identToken string
 
-	a := append([]string{
+	a := append(util.GcloudCommonFlags, []string{
 		"auth",
 		"print-identity-token",
-	}, util.GcloudCommonFlags...)
+	}...)
 	identToken, err = util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
 
 	if err != nil {

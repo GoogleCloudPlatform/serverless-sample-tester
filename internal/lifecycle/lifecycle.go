@@ -59,19 +59,19 @@ func GetLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 // project. It uses `gcloud builds submit` for building the samples container image and submitting it to the container
 // and `gcloud run deploy` for deploying it to Cloud Run.
 func buildDefaultLifecycle(serviceName, gcrURL string) Lifecycle {
-	a0 := append([]string{
+	a0 := append(util.GcloudCommonFlags, []string{
 		"builds",
 		"submit",
 		fmt.Sprintf("--tag=%s", gcrURL),
-	}, util.GcloudCommonFlags...)
+	}...)
 
-	a1 := append([]string{
+	a1 := append(util.GcloudCommonFlags, []string{
 		"run",
 		"deploy",
 		serviceName,
 		fmt.Sprintf("--image=%s", gcrURL),
 		"--platform=managed",
-	}, util.GcloudCommonFlags...)
+	}...)
 
 	return Lifecycle{
 		exec.Command("gcloud", a0...),

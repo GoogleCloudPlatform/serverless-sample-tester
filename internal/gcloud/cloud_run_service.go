@@ -37,13 +37,13 @@ type CloudRunService struct {
 
 // Delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current cloudRunService.
 func (s CloudRunService) Delete(sampleDir string) error {
-	a := append([]string{
+	a := append(util.GcloudCommonFlags, []string{
 		"run",
 		"services",
 		"delete",
 		s.Name,
 		"--platform=managed",
-	}, util.GcloudCommonFlags...)
+	}...)
 	_, err := util.ExecCommand(exec.Command("gcloud", a...), sampleDir)
 
 	if err != nil {
@@ -60,14 +60,14 @@ func (s *CloudRunService) URL(sampleDir string) (string, error) {
 		return s.url, nil
 	}
 
-	a := append([]string{
+	a := append(util.GcloudCommonFlags, []string{
 		"run",
 		"--platform=managed",
 		"services",
 		"describe",
 		s.Name,
 		"--format=value(status.url)",
-	}, util.GcloudCommonFlags...)
+	}...)
 	url, err := util.ExecCommand(exec.Command("gcloud", a...), sampleDir)
 
 	if err != nil {
