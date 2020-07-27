@@ -15,7 +15,7 @@
 package main
 
 import (
-	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/cmd/sst"
+	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/cmd"
 	"github.com/spf13/cobra"
 	"log"
 )
@@ -25,7 +25,7 @@ func main() {
 		Use:   "sst [sample-dir]",
 		Short: "An end-to-end tester for GCP samples",
 		Args:  cobra.ExactArgs(1),
-		RunE:  sst.Root,
+		RunE:  cmd.Root,
 	}
 
 	if err := rootCmd.Execute(); err != nil {
