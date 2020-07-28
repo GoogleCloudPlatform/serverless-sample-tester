@@ -52,9 +52,7 @@ func NewSample(dir string) (*Sample, error) {
 		return nil, fmt.Errorf("[sample.NewSample] generating Container Registry container image tag: %w", err)
 	}
 
-	a := append(util.GcloudCommonFlags, []string{
-		"config", "get-value", "core/project",
-	}...)
+	a := append(util.GcloudCommonFlags, "config", "get-value", "core/project")
 	projectID, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
 
 	if err != nil {
@@ -90,12 +88,7 @@ func sampleName(dir string) string {
 
 // DeleteCloudContainerImage deletes the sample's container image off of the Container Registry.
 func (s *Sample) DeleteCloudContainerImage() error {
-	a := append(util.GcloudCommonFlags, []string{
-		"container",
-		"images",
-		"delete",
-		s.cloudContainerImageURL,
-	}...)
+	a := append(util.GcloudCommonFlags, "container", "images", "delete", s.cloudContainerImageURL)
 	_, err := util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
 
 	if err != nil {
