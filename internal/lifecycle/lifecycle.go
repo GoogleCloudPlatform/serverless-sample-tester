@@ -27,6 +27,10 @@ type Lifecycle []*exec.Cmd
 // Execute executes the commands of a lifecycle in the provided directory.
 func (l Lifecycle) Execute(commandsDir string) error {
 	for _, c := range l {
+		if c == nil {
+			continue
+		}
+
 		_, err := util.ExecCommand(c, commandsDir)
 		if err != nil {
 			return fmt.Errorf("[Lifecycle.Execute] executing lifecycle command: %w", err)
