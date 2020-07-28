@@ -36,9 +36,9 @@ func (l Lifecycle) Execute(commandsDir string) error {
 	return nil
 }
 
-// GetLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based
+// NewLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func GetLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
+func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
 	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sampleDir)
 

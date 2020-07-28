@@ -66,7 +66,7 @@ func NewSample(dir string) (*Sample, error) {
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
-	buildDeployLifecycle := lifecycle.GetLifecycle(dir, service.Name, cloudContainerImageURL)
+	buildDeployLifecycle := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL)
 
 	s := &Sample{
 		Name:                   name,
