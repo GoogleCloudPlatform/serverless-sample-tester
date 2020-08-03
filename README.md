@@ -38,7 +38,7 @@ the program should build and deploy your sample:
 
 For example:
 ````text
-[//]: # ({sst-run-build-linuxmacos})
+[//]: # ({sst-run-linuxmacos})
 ```bash
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
