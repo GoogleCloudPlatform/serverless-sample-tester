@@ -53,7 +53,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 			startCodeBlockLine := scanner.Text()
 
 			if !strings.Contains(startCodeBlockLine, "```") {
-				return nil, fmt.Errorf("error parsing README -- incorrect format")
+				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: incorrect format")
 			}
 
 			inCode = true
@@ -72,7 +72,8 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 
 			var cmd *exec.Cmd
 			if strings.Contains(line, "gcloud") {
-				cmd = util.GcloudCommandBuild(sp[1:]...)
+				a := append(util.GcloudCommonFlags, sp[1:]...)
+				cmd = exec.Command("gcloud", a...)
 			} else {
 				cmd = exec.Command(sp[0], sp[1:]...)
 			}
@@ -82,7 +83,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	}
 
 	if inCode {
-		return nil, fmt.Errorf("error parsing README -- incorrect format")
+		return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: incorrect format")
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -90,7 +91,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	}
 
 	if len(lifecycle) == 0 {
-		return nil, fmt.Errorf("no commands found in README")
+		return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: no commands found")
 	}
 
 	return lifecycle, nil
@@ -100,8 +101,8 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 // It detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
 // with the input service name.
 func replaceServiceName(commandStr, serviceName string) string {
-	containsGcloud, _ := regexp.MatchString(`gcloud\b`, commandStr)
-	containsRun, _ := regexp.MatchString(`run\b`, commandStr)
+	containsGcloud, _ := regexp.MatchString(`\bgcloud\b`, commandStr)
+	containsRun, _ := regexp.MatchString(`\brun\b`, commandStr)
 
 	if !(containsGcloud && containsRun) {
 		return commandStr
@@ -118,7 +119,7 @@ func replaceServiceName(commandStr, serviceName string) string {
 	return strings.Join(sp, " ")
 }
 
-// replaceServiceName takes a terminal command string as input and replaces the URL of a container image stored in the
+// replaceGCRURL takes a terminal command string as input and replaces the URL of a container image stored in the
 // GCP Container Registry with the given URL.
 func replaceGCRURL(commandStr string, gcrURL string) string {
 	re := regexp.MustCompile(`gcr.io/.+/\S+`)
