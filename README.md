@@ -43,5 +43,12 @@ For example:
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
 
+Do not set the Cloud Run region you'd like to deploy to through the `--region` flag in the `gcloud run` commands.
+Instead, as mentioned above, do so by setting the `run/region` gcloud property.
+
+In addition to setting a default Cloud Run region, make sure to deploy to the fully platform on Cloud Run. You can
+achieve this by setting the `run/platform` gcloud property to `managed` or passing in the `--platform=managed` flag
+to your `gcloud run` commands.
+
 If code tags aren't added to your README, the program will fall back to reasonable defaults to build and deploy your
 sample to Cloud Run based on whether your sample is java-based and doesn't have a Dockerfile or isn't.
