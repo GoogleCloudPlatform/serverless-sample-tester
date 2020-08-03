@@ -87,7 +87,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
 	}
 
 	if len(lifecycle) == 0 {
