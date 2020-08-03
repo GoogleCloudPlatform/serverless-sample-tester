@@ -41,7 +41,6 @@ func (l Lifecycle) Execute(commandsDir string) error {
 	return nil
 }
 
-
 // NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
 // those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
