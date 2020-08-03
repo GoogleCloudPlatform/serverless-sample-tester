@@ -100,15 +100,15 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 // replaceServiceName takes a terminal command string as input and replaces the Cloud Run service name, if any.
 // It detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
 // with the input service name.
-func replaceServiceName(commandStr, serviceName string) string {
-	containsGcloud, _ := regexp.MatchString(`\bgcloud\b`, commandStr)
-	containsRun, _ := regexp.MatchString(`\brun\b`, commandStr)
+func replaceServiceName(command, serviceName string) string {
+	containsGcloud, _ := regexp.MatchString(`\bgcloud\b`, command)
+	containsRun, _ := regexp.MatchString(`\brun\b`, command)
 
 	if !(containsGcloud && containsRun) {
-		return commandStr
+		return command
 	}
 
-	sp := strings.Split(commandStr, " ")
+	sp := strings.Split(command, " ")
 	for i := len(sp) - 1; i >= 0; i-- {
 		if !strings.Contains(sp[i], "--") {
 			sp[i] = serviceName
@@ -121,7 +121,7 @@ func replaceServiceName(commandStr, serviceName string) string {
 
 // replaceGCRURL takes a terminal command string as input and replaces the URL of a container image stored in the
 // GCP Container Registry with the given URL.
-func replaceGCRURL(commandStr string, gcrURL string) string {
+func replaceGCRURL(command string, gcrURL string) string {
 	re := regexp.MustCompile(`gcr.io/.+/\S+`)
-	return re.ReplaceAllString(commandStr, gcrURL)
+	return re.ReplaceAllString(command, gcrURL)
 }
