@@ -39,9 +39,10 @@ the program should build and deploy your sample:
 For example:
 ````text
 [//]: # ({sst-run-linuxmacos})
-```bash
+```
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
+````
 
 Do not set the Cloud Run region you'd like to deploy to through the `--region` flag in the `gcloud run` commands.
 Instead, as mentioned above, do so by setting the `run/region` gcloud property.
