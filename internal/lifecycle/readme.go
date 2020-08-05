@@ -26,7 +26,7 @@ import (
 
 // The tag that should appear immediately before code blocks in a README to indicate that the enclosed commands
 // are to be used by this program for building and deploying the sample.
-var codeTag = "sst-run-linuxmacos"
+var codeTag = "sst-run-unix"
 
 // parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
 // listed above and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
