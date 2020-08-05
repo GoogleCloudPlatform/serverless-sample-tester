@@ -34,7 +34,7 @@ var codeTag = "sst-run-linuxmacos"
 func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("[lifecycle.parseREADME] os.Open %s: %w", filename, err)
 	}
 	defer file.Close()
 
