@@ -29,8 +29,8 @@ Make sure to authorize the gcloud SDK and set a default project and Cloud Run re
 default Cloud Run region can be set by setting the `run/region` gcloud property.
 
 ### README parsing
-If you'd like, make sure to include the following comment code tag immediately preceding code blocks to customize how
-the program should build and deploy your sample:
+If you'd like, make sure to include the following comment code tag in your README to customize how the program should
+build and deploy your sample:
 
 ```text
 [//]: # ({sst-run-unix})
@@ -43,6 +43,18 @@ For example:
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
 ````
+
+When parsing the README for custom build and deploy commands, the serverless sample tester will include any commands
+inside a code fence that is immediately preceded by a line containing `{sst-run-unix}`. You can use Markdown syntax
+(e.g. `[//]: # ({sst-run-unix})`) to include this line without making it visible when rendered.
+
+The parsed commands will not be run through a shell, meaning that the program will not perform any expansions,
+pipelines, redirections or any other functions that shells are responsible for. This also means that popular shell
+builtin commands like `cd`, `export`, and `echo` will not be available or may not work as expected.  
+
+However, any environment variables referenced in the form of `$var` or `${var}` will expanded. In addition, bash-style
+multiline commands (i.e. non-quoted backslashes at the end of a line that indicate a line continuation) will also be 
+supported. 
 
 Do not set the Cloud Run region you'd like to deploy to through the `--region` flag in the `gcloud run` commands.
 Instead, as mentioned above, do so by setting the `run/region` gcloud property.
