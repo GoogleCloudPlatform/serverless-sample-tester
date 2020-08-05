@@ -120,10 +120,11 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 // It detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
 // with the input service name.
 func replaceServiceName(command, serviceName string) string {
-	// regexp.MatchString only returns an error if there was an error compiling the provided regular expression pattern.
-	// Since we know both of the patterns we're providing are valid, ignore these errors.
-	containsGcloud, _ := regexp.MatchString(`\bgcloud\b`, command)
-	containsRun, _ := regexp.MatchString(`\brun\b`, command)
+	r1 := regexp.MustCompile(`\bgcloud\b`)
+	r2 := regexp.MustCompile(`\brun\b`)
+
+	containsGcloud := r1.MatchString(command)
+	containsRun := r2.MatchString(command)
 
 	if !(containsGcloud && containsRun) {
 		return command
