@@ -39,51 +39,70 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-
 	var lifecycle Lifecycle
-
-	inCode := false
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+		line := scanner.Text()
 
-		if strings.Contains(line, "```") && inCode {
-			inCode = false
-		} else if strings.Contains(line, codeTag) {
-			scanner.Scan()
+		if strings.Contains(line, codeTag) {
+			s := scanner.Scan()
 			startCodeBlockLine := scanner.Text()
 
-			if !strings.Contains(startCodeBlockLine, "```") {
-				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: incorrect format")
+			c := strings.Contains(startCodeBlockLine, "```")
+			if !s || !c {
+				if err := scanner.Err(); err != nil && !s {
+					return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
+				}
+
+				if !c {
+					return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: expecting start of code block immediately after code tag")
+				} else { // scanner.Scan falied, but no error found. EOF.
+					return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; file ended immediately after code tag")
+				}
 			}
 
-			inCode = true
-		} else if inCode {
-			for line[len(line)-1] == '\\' {
-				line = line[:len(line)-1]
+			var blockClosed bool
+			for scanner.Scan() {
+				line = scanner.Text()
+				if strings.Contains(line, "```") {
+					blockClosed = true
+					break
+				}
 
-				scanner.Scan()
-				line = line + strings.TrimSpace(scanner.Text())
+				line = strings.TrimSpace(line)
+
+				// If there is a backslash at the end of the line, this is a multiline command. Keep scanning to get
+				// entire command.
+				for line[len(line)-1] == '\\' {
+					line = line[:len(line)-1]
+
+					scanner.Scan()
+					line = line + strings.TrimSpace(scanner.Text())
+				}
+
+				line = os.ExpandEnv(line)
+				line = replaceGCRURL(line, gcrURL)
+				line = replaceServiceName(line, serviceName)
+				sp := strings.Split(line, " ")
+
+				var cmd *exec.Cmd
+				if strings.Contains(line, "gcloud") {
+					a := append(util.GcloudCommonFlags, sp[1:]...)
+					cmd = exec.Command("gcloud", a...)
+				} else {
+					cmd = exec.Command(sp[0], sp[1:]...)
+				}
+
+				lifecycle = append(lifecycle, cmd)
 			}
 
-			line = os.ExpandEnv(line)
-			line = replaceGCRURL(line, gcrURL)
-			line = replaceServiceName(line, serviceName)
-			sp := strings.Split(line, " ")
-
-			var cmd *exec.Cmd
-			if strings.Contains(line, "gcloud") {
-				a := append(util.GcloudCommonFlags, sp[1:]...)
-				cmd = exec.Command("gcloud", a...)
-			} else {
-				cmd = exec.Command(sp[0], sp[1:]...)
+			if err := scanner.Err(); err != nil {
+				return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
 			}
 
-			lifecycle = append(lifecycle, cmd)
+			if !blockClosed {
+				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: code block not closed before end of file")
+			}
 		}
-	}
-
-	if inCode {
-		return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: incorrect format")
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -101,6 +120,8 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 // It detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
 // with the input service name.
 func replaceServiceName(command, serviceName string) string {
+	// regexp.MatchString only returns an error if there was an error compiling the provided regular expression pattern.
+	// Since we know both of the patterns we're providing are valid, ignore these errors.
 	containsGcloud, _ := regexp.MatchString(`\bgcloud\b`, command)
 	containsRun, _ := regexp.MatchString(`\brun\b`, command)
 
