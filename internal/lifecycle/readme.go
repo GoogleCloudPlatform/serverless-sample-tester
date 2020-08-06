@@ -24,11 +24,19 @@ import (
 	"strings"
 )
 
-var (
+const (
 	// The tag that should appear immediately before code blocks in a README to indicate that the enclosed commands
 	// are to be used by this program for building and deploying the sample.
 	codeTag = "{sst-run-unix}"
 
+	// A non-quoted backslash in bash at the end of a line indicates a line continuation from the current line to the
+	// next line.
+	bashLineContChar = '\\'
+
+	mdCodeBlockFence = "```"
+)
+
+var (
 	gcloudCommandRegexp   = regexp.MustCompile(`\bgcloud\b`)
 	cloudRunCommandRegexp = regexp.MustCompile(`\brun\b`)
 
@@ -60,7 +68,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 			}
 
 			startCodeBlockLine := scanner.Text()
-			c := strings.Contains(startCodeBlockLine, "```")
+			c := strings.Contains(startCodeBlockLine, mdCodeBlockFence)
 			if !c {
 				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: expecting start of code block" +
 					"immediately after code tag")
@@ -69,7 +77,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 			var blockClosed bool
 			for scanner.Scan() {
 				line = scanner.Text()
-				if strings.Contains(line, "```") {
+				if strings.Contains(line, mdCodeBlockFence) {
 					blockClosed = true
 					break
 				}
@@ -78,7 +86,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 
 				// If there is a backslash at the end of the line, this is a multiline command. Keep scanning to get
 				// entire command.
-				for line[len(line)-1] == '\\' {
+				for line[len(line)-1] == bashLineContChar {
 					line = line[:len(line)-1]
 
 					if s := scanner.Scan(); !s {
@@ -90,7 +98,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 					}
 
 					l := scanner.Text()
-					if strings.Contains(l, "```") {
+					if strings.Contains(l, mdCodeBlockFence) {
 						return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected end of" +
 							"code block; expecting command line continuation")
 					}

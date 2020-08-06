@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 // Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
@@ -45,7 +46,7 @@ func (l Lifecycle) Execute(commandsDir string) error {
 // those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
 func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
-	readmePath := fmt.Sprintf("%s/README.md", sampleDir)
+	readmePath := filepath.Join(sampleDir, "README.md")
 
 	if _, err := os.Stat(readmePath); err == nil {
 		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
@@ -56,16 +57,16 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 		fmt.Printf("Failed parsing README: %v\n", err)
 	}
 
-	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
-	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sampleDir)
+	pomPath := filepath.Join(sampleDir, "pom.xml")
+	dockerfilePath := filepath.Join(sampleDir, "Dockerfile")
 
 	_, err := os.Stat(pomPath)
-	pomExists := err == nil
+	pomE := err == nil
 
 	_, err = os.Stat(dockerfilePath)
-	dockerfileExists := err == nil
+	dockerfileE := err == nil
 
-	if pomExists && !dockerfileExists {
+	if pomE && !dockerfileE {
 		log.Println("Using default build and deploy commands for java samples without a Dockerfile")
 		return buildDefaultJavaLifecycle(serviceName, gcrURL)
 	}
