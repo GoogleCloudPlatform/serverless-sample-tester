@@ -32,8 +32,6 @@ const (
 	// A non-quoted backslash in bash at the end of a line indicates a line continuation from the current line to the
 	// next line.
 	bashLineContChar = '\\'
-
-	mdCodeBlockFence = "```"
 )
 
 var (
@@ -41,6 +39,10 @@ var (
 	cloudRunCommandRegexp = regexp.MustCompile(`\brun\b`)
 
 	gcrURLRegexp = regexp.MustCompile(`gcr.io/.+/\S+`)
+
+	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
+
+	errNoREADMECommandsFound = fmt.Errorf("[lifecycle.parseREADME]: no commands found")
 )
 
 // parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
@@ -58,26 +60,29 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if strings.Contains(line, codeTag) {
+		if mdCodeFenceStartRegexp.MatchString(line) {
 			if s := scanner.Scan(); !s {
 				if err := scanner.Err(); err != nil && !s {
 					return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
 				}
-				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; file ended" +
-					"immediately after code tag")
+				return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected EOF in %s; file ended immediately " +
+					"after code tag", filename)
 			}
 
 			startCodeBlockLine := scanner.Text()
-			c := strings.Contains(startCodeBlockLine, mdCodeBlockFence)
-			if !c {
-				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: expecting start of code block" +
-					"immediately after code tag")
+			m := mdCodeFenceStartRegexp.MatchString(startCodeBlockLine)
+			if !m {
+				return nil, fmt.Errorf("[lifecycle.parseREADME]: expecting start of code block immediately " +
+					"after code tag in %s", filename)
 			}
+
+			c := strings.Count(startCodeBlockLine, "`")
+			mdCodeFenceEndRegexp := regexp.MustCompile(fmt.Sprintf("^\\w*`{%d,}\\w*$", c))
 
 			var blockClosed bool
 			for scanner.Scan() {
 				line = scanner.Text()
-				if strings.Contains(line, mdCodeBlockFence) {
+				if mdCodeFenceEndRegexp.MatchString(line) {
 					blockClosed = true
 					break
 				}
@@ -93,14 +98,14 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 						if err := scanner.Err(); err != nil && !s {
 							return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
 						}
-						return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; file" +
-							"ended immediately after code tag")
+						return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected EOF in %s; file ended " +
+							"immediately after code tag", filename)
 					}
 
 					l := scanner.Text()
-					if strings.Contains(l, mdCodeBlockFence) {
-						return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected end of" +
-							"code block; expecting command line continuation")
+					if mdCodeFenceEndRegexp.MatchString(l) {
+						return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected end of code block in %s; " +
+							"expecting command line continuation", filename)
 					}
 
 					line = line + strings.TrimSpace(l)
@@ -127,8 +132,8 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 			}
 
 			if !blockClosed {
-				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; code block not" +
-					"closed")
+				return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected EOF in %s; code block not closed",
+					filename)
 			}
 		}
 	}
@@ -138,7 +143,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	}
 
 	if len(lifecycle) == 0 {
-		return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: no commands found")
+		return nil, errNoREADMECommandsFound
 	}
 
 	return lifecycle, nil
