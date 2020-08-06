@@ -35,7 +35,7 @@ const (
 )
 
 var (
-	gcloudCommandRegexp   = regexp.MustCompile(`\bgcloud\b`)
+	gcloudCommandRegexp   = regexp.MustCompile(`^gcloud\b`)
 	cloudRunCommandRegexp = regexp.MustCompile(`\brun\b`)
 
 	gcrURLRegexp = regexp.MustCompile(`gcr.io/.+/\S+`)
@@ -56,94 +56,130 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var lifecycle Lifecycle
+	codeBlocks, err := codeBlocks(scanner)
+	if err != nil {
+		return nil, fmt.Errorf("[lifecycle.parseREADME] extracting code blocks out of %s: %w", filename, err)
+	}
+
+	lifecycle, err := codeBlocksTolifecycle(codeBlocks, serviceName, gcrURL)
+	if err != nil {
+		return lifecycle, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable "+
+			"commands: %w", filename, err)
+	}
+
+	if len(lifecycle) == 0 {
+		return lifecycle, errNoREADMECommandsFound
+	}
+
+	return lifecycle, nil
+}
+
+// codeBlocks extracts code blocks out of a bufio.Scanner that's reading from a Markdown file immediately prefaced with
+// a line containing codeTag. It returns an 2d slice of code blocks, each containing an array of lines contained within
+// that code block.
+func codeBlocks(scanner *bufio.Scanner) ([][]string, error) {
+	var blocks [][]string
+
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if mdCodeFenceStartRegexp.MatchString(line) {
+		if strings.Contains(line, codeTag) {
 			if s := scanner.Scan(); !s {
 				if err := scanner.Err(); err != nil && !s {
-					return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
+					return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
 				}
-				return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected EOF in %s; file ended immediately " +
-					"after code tag", filename)
+				return nil, fmt.Errorf("[lifecycle.codeBlocks]: unexpected EOF; file ended immediately " +
+					"after code tag")
 			}
 
 			startCodeBlockLine := scanner.Text()
 			m := mdCodeFenceStartRegexp.MatchString(startCodeBlockLine)
 			if !m {
-				return nil, fmt.Errorf("[lifecycle.parseREADME]: expecting start of code block immediately " +
-					"after code tag in %s", filename)
+				return nil, fmt.Errorf("[lifecycle.codeBlocks]: expecting start of code block immediately " +
+					"after code tag")
 			}
 
 			c := strings.Count(startCodeBlockLine, "`")
 			mdCodeFenceEndRegexp := regexp.MustCompile(fmt.Sprintf("^\\w*`{%d,}\\w*$", c))
 
+			var block []string
 			var blockClosed bool
 			for scanner.Scan() {
-				line = scanner.Text()
+				line = strings.TrimSpace(scanner.Text())
 				if mdCodeFenceEndRegexp.MatchString(line) {
 					blockClosed = true
 					break
 				}
 
-				line = strings.TrimSpace(line)
-
-				// If there is a backslash at the end of the line, this is a multiline command. Keep scanning to get
-				// entire command.
-				for line[len(line)-1] == bashLineContChar {
-					line = line[:len(line)-1]
-
-					if s := scanner.Scan(); !s {
-						if err := scanner.Err(); err != nil && !s {
-							return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
-						}
-						return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected EOF in %s; file ended " +
-							"immediately after code tag", filename)
-					}
-
-					l := scanner.Text()
-					if mdCodeFenceEndRegexp.MatchString(l) {
-						return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected end of code block in %s; " +
-							"expecting command line continuation", filename)
-					}
-
-					line = line + strings.TrimSpace(l)
-				}
-
-				line = os.ExpandEnv(line)
-				line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
-				line = replaceServiceName(line, serviceName)
-				sp := strings.Split(line, " ")
-
-				var cmd *exec.Cmd
-				if strings.Contains(line, "gcloud") {
-					a := append(util.GcloudCommonFlags, sp[1:]...)
-					cmd = exec.Command("gcloud", a...)
-				} else {
-					cmd = exec.Command(sp[0], sp[1:]...)
-				}
-
-				lifecycle = append(lifecycle, cmd)
+				block = append(block, line)
 			}
 
 			if err := scanner.Err(); err != nil {
-				return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
+				return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
 			}
 
 			if !blockClosed {
-				return nil, fmt.Errorf("[lifecycle.parseREADME]: unexpected EOF in %s; code block not closed",
-					filename)
+				return nil, fmt.Errorf("[lifecycle.codeBlocks]: unexpected EOF; code block not closed")
 			}
+
+			blocks = append(blocks, block)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
+		return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
 	}
 
-	if len(lifecycle) == 0 {
-		return nil, errNoREADMECommandsFound
+	return blocks, nil
+}
+
+// codeBlocksTolifecycle takes a slice of Markdown code blocks and extracts the terminal commands contained within them
+// to form a Lifecycle. It handles the expansion of environment variables and line continuations. It also detects
+// Cloud Run service names Google Container Registry container image URLs and replaces them with the ones provided.
+func codeBlocksTolifecycle(codeBlocks [][]string, serviceName, gcrURL string) (Lifecycle, error) {
+	var lifecycle Lifecycle
+
+	for _, block := range codeBlocks {
+		for i := 0; i < len(block); i++ {
+			line := block[i]
+			if line == "" {
+				continue
+			}
+
+			// If there is a backslash at the end of the line, this is a multiline command. Keep scanning to get
+			// entire command.
+			for line[len(line)-1] == bashLineContChar {
+				line = line[:len(line)-1]
+
+				i++
+				if i >= len(block) {
+					return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle]: unexpected end of code block; " +
+						"expecting command line continuation")
+				}
+
+				l := block[i]
+				if l == "" {
+					break
+				}
+
+				line = line + l
+			}
+
+			line = os.ExpandEnv(line)
+			line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
+			line = replaceServiceName(line, serviceName)
+			sp := strings.Split(line, " ")
+
+			var cmd *exec.Cmd
+			if strings.Contains(line, "gcloud") {
+				a := append(util.GcloudCommonFlags, sp[1:]...)
+				cmd = exec.Command("gcloud", a...)
+			} else {
+				cmd = exec.Command(sp[0], sp[1:]...)
+			}
+
+			lifecycle = append(lifecycle, cmd)
+		}
 	}
 
 	return lifecycle, nil
