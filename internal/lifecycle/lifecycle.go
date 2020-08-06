@@ -47,10 +47,7 @@ func (l Lifecycle) Execute(commandsDir string) error {
 func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 	readmePath := fmt.Sprintf("%s/README.md", sampleDir)
 
-	_, err := os.Stat(readmePath)
-	readmeExists := err == nil
-
-	if readmeExists {
+	if _, err := os.Stat(readmePath); err == nil {
 		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
 		if err == nil {
 			log.Println("Using build and deploy commands found in README")
@@ -62,7 +59,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
 	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
 	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sampleDir)
 
-	_, err = os.Stat(pomPath)
+	_, err := os.Stat(pomPath)
 	pomExists := err == nil
 
 	_, err = os.Stat(dockerfilePath)

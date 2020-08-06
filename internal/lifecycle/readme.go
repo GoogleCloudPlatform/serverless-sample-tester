@@ -24,9 +24,16 @@ import (
 	"strings"
 )
 
-// The tag that should appear immediately before code blocks in a README to indicate that the enclosed commands
-// are to be used by this program for building and deploying the sample.
-var codeTag = "{sst-run-unix}"
+var (
+	// The tag that should appear immediately before code blocks in a README to indicate that the enclosed commands
+	// are to be used by this program for building and deploying the sample.
+	codeTag = "{sst-run-unix}"
+
+	gcloudCommandRegexp   = regexp.MustCompile(`\bgcloud\b`)
+	cloudRunCommandRegexp = regexp.MustCompile(`\brun\b`)
+
+	gcrURLRegexp = regexp.MustCompile(`gcr.io/.+/\S+`)
+)
 
 // parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
 // listed above and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
@@ -44,20 +51,19 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 		line := scanner.Text()
 
 		if strings.Contains(line, codeTag) {
-			s := scanner.Scan()
-			startCodeBlockLine := scanner.Text()
-
-			c := strings.Contains(startCodeBlockLine, "```")
-			if !s || !c {
+			if s := scanner.Scan(); !s {
 				if err := scanner.Err(); err != nil && !s {
 					return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
 				}
+				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; file ended" +
+					"immediately after code tag")
+			}
 
-				if !c {
-					return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: expecting start of code block immediately after code tag")
-				} else { // scanner.Scan falied, but no error found. EOF.
-					return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; file ended immediately after code tag")
-				}
+			startCodeBlockLine := scanner.Text()
+			c := strings.Contains(startCodeBlockLine, "```")
+			if !c {
+				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: expecting start of code block" +
+					"immediately after code tag")
 			}
 
 			var blockClosed bool
@@ -75,12 +81,25 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 				for line[len(line)-1] == '\\' {
 					line = line[:len(line)-1]
 
-					scanner.Scan()
-					line = line + strings.TrimSpace(scanner.Text())
+					if s := scanner.Scan(); !s {
+						if err := scanner.Err(); err != nil && !s {
+							return nil, fmt.Errorf("[lifecycle.parseREADME] README bufio.Scanner: %w", err)
+						}
+						return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; file" +
+							"ended immediately after code tag")
+					}
+
+					l := scanner.Text()
+					if strings.Contains(l, "```") {
+						return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected end of" +
+							"code block; expecting command line continuation")
+					}
+
+					line = line + strings.TrimSpace(l)
 				}
 
 				line = os.ExpandEnv(line)
-				line = replaceGCRURL(line, gcrURL)
+				line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
 				line = replaceServiceName(line, serviceName)
 				sp := strings.Split(line, " ")
 
@@ -100,7 +119,8 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 			}
 
 			if !blockClosed {
-				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: code block not closed before end of file")
+				return nil, fmt.Errorf("[lifecycle.parseREADME] parsing README: unexpected EOF; code block not" +
+					"closed")
 			}
 		}
 	}
@@ -120,13 +140,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 // It detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
 // with the input service name.
 func replaceServiceName(command, serviceName string) string {
-	r1 := regexp.MustCompile(`\bgcloud\b`)
-	r2 := regexp.MustCompile(`\brun\b`)
-
-	containsGcloud := r1.MatchString(command)
-	containsRun := r2.MatchString(command)
-
-	if !(containsGcloud && containsRun) {
+	if !(gcloudCommandRegexp.MatchString(command) && cloudRunCommandRegexp.MatchString(command)) {
 		return command
 	}
 
@@ -139,11 +153,4 @@ func replaceServiceName(command, serviceName string) string {
 	}
 
 	return strings.Join(sp, " ")
-}
-
-// replaceGCRURL takes a terminal command string as input and replaces the URL of a container image stored in the
-// GCP Container Registry with the given URL.
-func replaceGCRURL(command string, gcrURL string) string {
-	re := regexp.MustCompile(`gcr.io/.+/\S+`)
-	return re.ReplaceAllString(command, gcrURL)
 }
