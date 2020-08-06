@@ -60,7 +60,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 			return nil, fmt.Errorf("[lifecycle.NewLifecycle] parsing README.md: %w", err)
 		}
 
-		fmt.Printf("No code blocks immediately preceded by %s found in README.md", codeTag)
+		fmt.Printf("No code blocks immediately preceded by %s found in README.md\n", codeTag)
 	} else {
 		fmt.Println("No README.md found")
 	}
