@@ -42,7 +42,8 @@ var (
 
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
-	errNoREADMECommandsFound = fmt.Errorf("[lifecycle.parseREADME]: no commands found")
+	errNoREADMECodeBlocksFound = fmt.Errorf("[lifecycle.parseREADME]: no code blocks immediately preceded by " +
+		"%s found", codeTag)
 )
 
 // parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
@@ -61,14 +62,14 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 		return nil, fmt.Errorf("[lifecycle.parseREADME] extracting code blocks out of %s: %w", filename, err)
 	}
 
+	if len(codeBlocks) == 0 {
+		return nil, errNoREADMECodeBlocksFound
+	}
+
 	lifecycle, err := codeBlocksTolifecycle(codeBlocks, serviceName, gcrURL)
 	if err != nil {
 		return lifecycle, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable "+
 			"commands: %w", filename, err)
-	}
-
-	if len(lifecycle) == 0 {
-		return lifecycle, errNoREADMECommandsFound
 	}
 
 	return lifecycle, nil
