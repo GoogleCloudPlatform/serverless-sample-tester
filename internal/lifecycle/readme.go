@@ -42,8 +42,7 @@ var (
 
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
-	errNoREADMECodeBlocksFound = fmt.Errorf("[lifecycle.parseREADME]: no code blocks immediately preceded by " +
-		"%s found", codeTag)
+	errNoREADMECodeBlocksFound = fmt.Errorf("[lifecycle.parseREADME]: no code blocks immediately preceded by %s found", codeTag)
 )
 
 // parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
@@ -68,8 +67,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 
 	lifecycle, err := codeBlocksTolifecycle(codeBlocks, serviceName, gcrURL)
 	if err != nil {
-		return lifecycle, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable "+
-			"commands: %w", filename, err)
+		return lifecycle, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable commands: %w", filename, err)
 	}
 
 	return lifecycle, nil
@@ -86,18 +84,16 @@ func codeBlocks(scanner *bufio.Scanner) ([][]string, error) {
 
 		if strings.Contains(line, codeTag) {
 			if s := scanner.Scan(); !s {
-				if err := scanner.Err(); err != nil && !s {
+				if err := scanner.Err(); err != nil {
 					return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
 				}
-				return nil, fmt.Errorf("[lifecycle.codeBlocks]: unexpected EOF; file ended immediately " +
-					"after code tag")
+				return nil, fmt.Errorf("[lifecycle.codeBlocks]: unexpected EOF; file ended immediately after code tag")
 			}
 
 			startCodeBlockLine := scanner.Text()
 			m := mdCodeFenceStartRegexp.MatchString(startCodeBlockLine)
 			if !m {
-				return nil, fmt.Errorf("[lifecycle.codeBlocks]: expecting start of code block immediately " +
-					"after code tag")
+				return nil, fmt.Errorf("[lifecycle.codeBlocks]: expecting start of code block immediately after code tag")
 			}
 
 			c := strings.Count(startCodeBlockLine, "`")
@@ -154,8 +150,7 @@ func codeBlocksTolifecycle(codeBlocks [][]string, serviceName, gcrURL string) (L
 
 				i++
 				if i >= len(block) {
-					return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle]: unexpected end of code block; " +
-						"expecting command line continuation")
+					return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle]: unexpected end of code block; expecting command line continuation")
 				}
 
 				l := block[i]
@@ -172,7 +167,7 @@ func codeBlocksTolifecycle(codeBlocks [][]string, serviceName, gcrURL string) (L
 			sp := strings.Split(line, " ")
 
 			var cmd *exec.Cmd
-			if strings.Contains(line, "gcloud") {
+			if sp[0] == "gcloud" {
 				a := append(util.GcloudCommonFlags, sp[1:]...)
 				cmd = exec.Command("gcloud", a...)
 			} else {
