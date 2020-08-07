@@ -120,12 +120,12 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 
 	var l Lifecycle
 	for _, b := range codeBlocks {
-		c, err := b.toCommands(serviceName, gcrURL)
+		cmds, err := b.toCommands(serviceName, gcrURL)
 		if err != nil {
 			return l, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable commands: %w", filename, err)
 		}
 
-		l = append(l, c...)
+		l = append(l, cmds...)
 	}
 
 	return l, nil
