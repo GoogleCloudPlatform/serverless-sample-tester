@@ -15,10 +15,13 @@
 package lifecycle
 
 import (
+	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 // Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
@@ -40,23 +43,44 @@ func (l Lifecycle) Execute(commandsDir string) error {
 	return nil
 }
 
-// NewLifecycle returns a lifecycle built with reasonable defaults based on whether the sample is java-based
+// NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
+// those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func NewLifecycle(sampleDir, serviceName, gcrURL string) Lifecycle {
-	pomPath := fmt.Sprintf("%s/pom.xml", sampleDir)
-	dockerfilePath := fmt.Sprintf("%s/Dockerfile", sampleDir)
+func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
+	readmePath := filepath.Join(sampleDir, "README.md")
 
-	_, err := os.Stat(pomPath)
-	pomExists := err == nil
+	if _, err := os.Stat(readmePath); err == nil {
+		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
+		if err == nil {
+			log.Println("Using build and deploy commands found in README.md")
+			return lifecycle, nil
+		}
 
-	_, err = os.Stat(dockerfilePath)
-	dockerfileExists := err == nil
+		if !errors.Is(err, errNoREADMECodeBlocksFound) {
+			return nil, fmt.Errorf("[lifecycle.NewLifecycle] parsing README.md: %w", err)
+		}
 
-	if pomExists && !dockerfileExists {
-		return buildDefaultJavaLifecycle(serviceName, gcrURL)
+		fmt.Printf("No code blocks immediately preceded by %s found in README.md\n", codeTag)
+	} else {
+		fmt.Println("No README.md found")
 	}
 
-	return buildDefaultLifecycle(serviceName, gcrURL)
+	pomPath := filepath.Join(sampleDir, "pom.xml")
+	dockerfilePath := filepath.Join(sampleDir, "Dockerfile")
+
+	_, err := os.Stat(pomPath)
+	pomE := err == nil
+
+	_, err = os.Stat(dockerfilePath)
+	dockerfileE := err == nil
+
+	if pomE && !dockerfileE {
+		log.Println("Using default build and deploy commands for java samples without a Dockerfile")
+		return buildDefaultJavaLifecycle(serviceName, gcrURL), nil
+	}
+
+	log.Println("Using default build and deploy commands for non-java samples or java samples with a Dockerfile")
+	return buildDefaultLifecycle(serviceName, gcrURL), nil
 }
 
 // buildDefaultLifecycle builds a build and deploy command lifecycle with reasonable defaults for a non-Java

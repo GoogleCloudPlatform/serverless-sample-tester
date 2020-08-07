@@ -66,7 +66,10 @@ func NewSample(dir string) (*Sample, error) {
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
-	buildDeployLifecycle := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL)
+	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL)
+	if err != nil {
+		return nil, fmt.Errorf("[sample.NewSample] getting Lifecycle: %w", err)
+	}
 
 	s := &Sample{
 		Name:                   name,
