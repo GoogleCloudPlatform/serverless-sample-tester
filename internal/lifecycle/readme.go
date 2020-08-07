@@ -45,6 +45,59 @@ var (
 	errNoREADMECodeBlocksFound = fmt.Errorf("[lifecycle.parseREADME]: no code blocks immediately preceded by %s found", codeTag)
 )
 
+// codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
+// terminal commands inside of a Markdown code block.
+type codeBlock []string
+
+// toCommands extracts the terminal commands contained within the current codeBlock. It handles the expansion of
+// environment variables and line continuations. It also detects Cloud Run service names Google Container Registry
+// container image URLs and replaces them with the ones provided.
+func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) {
+	var cmds []*exec.Cmd
+
+	for i := 0; i < len(cb); i++ {
+		line := cb[i]
+		if line == "" {
+			continue
+		}
+
+		// If there is a backslash at the end of the line, this is a multiline command. Keep scanning to get entire
+		// command.
+		for line[len(line)-1] == bashLineContChar {
+			line = line[:len(line)-1]
+
+			i++
+			if i >= len(cb) {
+				return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle]: unexpected end of code block; expecting command line continuation")
+			}
+
+			l := cb[i]
+			if l == "" {
+				break
+			}
+
+			line = line + l
+		}
+
+		line = os.ExpandEnv(line)
+		line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
+		line = replaceServiceName(line, serviceName)
+		sp := strings.Split(line, " ")
+
+		var cmd *exec.Cmd
+		if sp[0] == "gcloud" {
+			a := append(util.GcloudCommonFlags, sp[1:]...)
+			cmd = exec.Command("gcloud", a...)
+		} else {
+			cmd = exec.Command(sp[0], sp[1:]...)
+		}
+
+		cmds = append(cmds, cmd)
+	}
+
+	return cmds, nil
+}
+
 // parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
 // listed above and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
 // Registry tag with the provided inputs.
@@ -56,7 +109,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	codeBlocks, err := codeBlocks(scanner)
+	codeBlocks, err := extractCodeBlocks(scanner)
 	if err != nil {
 		return nil, fmt.Errorf("[lifecycle.parseREADME] extracting code blocks out of %s: %w", filename, err)
 	}
@@ -65,19 +118,24 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 		return nil, errNoREADMECodeBlocksFound
 	}
 
-	lifecycle, err := codeBlocksTolifecycle(codeBlocks, serviceName, gcrURL)
-	if err != nil {
-		return lifecycle, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable commands: %w", filename, err)
+	var l Lifecycle
+	for _, b := range codeBlocks {
+		c, err := b.toCommands(serviceName, gcrURL)
+		if err != nil {
+			return l, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable commands: %w", filename, err)
+		}
+
+		l = append(l, c...)
 	}
 
-	return lifecycle, nil
+	return l, nil
 }
 
 // codeBlocks extracts code blocks out of a bufio.Scanner that's reading from a Markdown file immediately prefaced with
 // a line containing codeTag. It returns an 2d slice of code blocks, each containing an array of lines contained within
 // that code block.
-func codeBlocks(scanner *bufio.Scanner) ([][]string, error) {
-	var blocks [][]string
+func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
+	var blocks []codeBlock
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -99,7 +157,7 @@ func codeBlocks(scanner *bufio.Scanner) ([][]string, error) {
 			c := strings.Count(startCodeBlockLine, "`")
 			mdCodeFenceEndRegexp := regexp.MustCompile(fmt.Sprintf("^\\w*`{%d,}\\w*$", c))
 
-			var block []string
+			var block codeBlock
 			var blockClosed bool
 			for scanner.Scan() {
 				line = strings.TrimSpace(scanner.Text())
@@ -128,57 +186,6 @@ func codeBlocks(scanner *bufio.Scanner) ([][]string, error) {
 	}
 
 	return blocks, nil
-}
-
-// codeBlocksTolifecycle takes a slice of Markdown code blocks and extracts the terminal commands contained within them
-// to form a Lifecycle. It handles the expansion of environment variables and line continuations. It also detects
-// Cloud Run service names Google Container Registry container image URLs and replaces them with the ones provided.
-func codeBlocksTolifecycle(codeBlocks [][]string, serviceName, gcrURL string) (Lifecycle, error) {
-	var lifecycle Lifecycle
-
-	for _, block := range codeBlocks {
-		for i := 0; i < len(block); i++ {
-			line := block[i]
-			if line == "" {
-				continue
-			}
-
-			// If there is a backslash at the end of the line, this is a multiline command. Keep scanning to get
-			// entire command.
-			for line[len(line)-1] == bashLineContChar {
-				line = line[:len(line)-1]
-
-				i++
-				if i >= len(block) {
-					return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle]: unexpected end of code block; expecting command line continuation")
-				}
-
-				l := block[i]
-				if l == "" {
-					break
-				}
-
-				line = line + l
-			}
-
-			line = os.ExpandEnv(line)
-			line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
-			line = replaceServiceName(line, serviceName)
-			sp := strings.Split(line, " ")
-
-			var cmd *exec.Cmd
-			if sp[0] == "gcloud" {
-				a := append(util.GcloudCommonFlags, sp[1:]...)
-				cmd = exec.Command("gcloud", a...)
-			} else {
-				cmd = exec.Command(sp[0], sp[1:]...)
-			}
-
-			lifecycle = append(lifecycle, cmd)
-		}
-	}
-
-	return lifecycle, nil
 }
 
 // replaceServiceName takes a terminal command string as input and replaces the Cloud Run service name, if any.
