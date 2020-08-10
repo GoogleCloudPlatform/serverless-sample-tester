@@ -49,26 +49,26 @@ func NewSample(dir string) (*Sample, error) {
 
 	containerTag, err := cloudContainerImageTag(name, dir)
 	if err != nil {
-		return nil, fmt.Errorf("[sample.NewSample] generating Container Registry container image tag: %w", err)
+		return nil, fmt.Errorf("cloudContainerImageTag %s %s: %w", name, dir, err)
 	}
 
 	a := append(util.GcloudCommonFlags, "config", "get-value", "core/project")
 	projectID, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
 
 	if err != nil {
-		return nil, fmt.Errorf("[sample.NewSample] getting gcloud default project: %w", err)
+		return nil, fmt.Errorf("util.ExecCommand getting gcloud default project: %w", err)
 	}
 	cloudContainerImageURL := fmt.Sprintf("gcr.io/%s/%s", projectID, containerTag)
 
 	serviceName, err := gcloud.ServiceName(name)
 	if err != nil {
-		return nil, fmt.Errorf("[sample.NewSample] generating Cloud Run Service name: %w", err)
+		return nil, fmt.Errorf("gcloud.ServiceName %s sample: %w", name, err)
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
 	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL)
 	if err != nil {
-		return nil, fmt.Errorf("[sample.NewSample] getting Lifecycle: %w", err)
+		return nil, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
 	}
 
 	s := &Sample{
@@ -95,7 +95,7 @@ func (s *Sample) DeleteCloudContainerImage() error {
 	_, err := util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
 
 	if err != nil {
-		return fmt.Errorf("[Sample.DeleteCloudContainerImage] deleting Container Registry container image: %w", err)
+		return fmt.Errorf("util.ExecCommand deleting Container Registry container image: %w", err)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func (s *Sample) DeleteCloudContainerImage() error {
 func cloudContainerImageTag(sampleName string, sampleDir string) (string, error) {
 	sha, err := util.ExecCommand(exec.Command("git", "rev-parse", "--verify", "--short", "HEAD"), sampleDir)
 	if err != nil {
-		return "", fmt.Errorf("[sample.cloudContainerImageTag] getting short SHA for sample repository: %w", err)
+		return "", fmt.Errorf("util.ExecCommand getting short SHA for sample repository: %w", err)
 	}
 
 	l := maxCloudContainerImageTagLen - len(sha) - 1

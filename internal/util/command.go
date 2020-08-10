@@ -47,7 +47,7 @@ func ExecCommand(cmd *exec.Cmd, dir string) (string, error) {
 	err := cmd.Run()
 	if err != nil {
 		out := strings.TrimSpace(string(stdcombined.Bytes()))
-		return "", fmt.Errorf("[util.ExecCommand] error executing external command %v:\n%s\n%w", cmd, out, err)
+		return "", fmt.Errorf("exec.Cmd.Run %v:\n%s\n%w", cmd, out, err)
 	}
 
 	out := strings.TrimSpace(string(stdout.Bytes()))
