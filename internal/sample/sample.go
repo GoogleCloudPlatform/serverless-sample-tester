@@ -44,7 +44,7 @@ type Sample struct {
 }
 
 // NewSample creates a new sample object for the sample located in the provided local directory.
-func NewSample(dir string) (*Sample, error) {
+func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, error) {
 	name := sampleName(dir)
 
 	containerTag, err := cloudContainerImageTag(name, dir)
@@ -66,7 +66,7 @@ func NewSample(dir string) (*Sample, error) {
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
-	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL)
+	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL, cloudBuildConfSubs)
 	if err != nil {
 		return nil, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
 	}

@@ -47,7 +47,24 @@ func (l Lifecycle) Execute(commandsDir string) error {
 // NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
 // those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
+func NewLifecycle(sampleDir, serviceName, gcrURL string, cloudBuildConfSubs map[string]string) (Lifecycle, error) {
+	// First try Cloud Build Config file
+	cloudBuildConfigPath := fmt.Sprintf("%s/cloudbuild.yaml", sampleDir)
+
+	_, err := os.Stat(cloudBuildConfigPath)
+	cloudBuildConfigE := err == nil
+
+	if cloudBuildConfigE {
+		lifecycle, err := parseCloudBuildConfig(cloudBuildConfigPath, serviceName, gcrURL, cloudBuildConfSubs)
+		if err == nil {
+			log.Println("Using cloud build config file")
+			return lifecycle, nil
+		}
+
+		return nil, fmt.Errorf("[lifecycle.NewLifecycle] using cloud build config file %s: %v\n", cloudBuildConfigPath, err)
+	}
+
+	// Then try README parsing
 	var readmePath string
 	// Searching for config file
 	if err := viper.ReadInConfig(); err == nil {
@@ -76,10 +93,11 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 		log.Println("No README.md found")
 	}
 
+	// Finally fall back to reasonable defaults
 	pomPath := filepath.Join(sampleDir, "pom.xml")
 	dockerfilePath := filepath.Join(sampleDir, "Dockerfile")
 
-	_, err := os.Stat(pomPath)
+	_, err = os.Stat(pomPath)
 	pomE := err == nil
 
 	_, err = os.Stat(dockerfilePath)

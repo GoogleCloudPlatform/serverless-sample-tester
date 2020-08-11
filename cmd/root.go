@@ -40,11 +40,7 @@ var (
 			}
 
 			log.Println("Setting up configuration values")
-			// Set up config file location
-			viper.SetConfigName("config")
-			viper.SetConfigType("yaml")
-			viper.AddConfigPath(sampleDir)
-			s, err := sample.NewSample(sampleDir)
+			s, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
 			if err != nil {
 				return err
 			}
@@ -96,4 +92,15 @@ func Execute() error {
 // init initializes the tool.
 func init() {
 	// Initialization goes here
+	// Set up config file location
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	//viper.AddConfigPath(sampleDir)
+
+	viper.SetEnvPrefix("sst")
+
+	viper.SetDefault("cloud_build_subs", map[string]string{})
+	viper.BindEnv("cloud_build_subs")
+	rootCmd.PersistentFlags().StringToString("cloud-build-subs", map[string]string{}, "")
+	viper.BindPFlag("cloud_build_subs", rootCmd.PersistentFlags().Lookup("cloud-build-subs"))
 }
