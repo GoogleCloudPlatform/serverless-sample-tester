@@ -33,24 +33,23 @@ If you'd like, make sure to include the following comment code tag in your READM
 build and deploy your sample:
 
 ```text
-[//]: # ({sst-run-unix})
+[//]: # ({sst-run-bash})
 ```
 
 For example:
 ````text
-[//]: # ({sst-run-unix})
+[//]: # ({sst-run-bash})
 ```
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
 ````
 
 When parsing the README for custom build and deploy commands, the serverless sample tester will include any commands
-inside a code fence that is immediately preceded by a line containing `{sst-run-unix}`. You can use Markdown syntax
-(e.g. `[//]: # ({sst-run-unix})`) to include this line without making it visible when rendered.
+inside a code fence that is immediately preceded by a line containing `{sst-run-bash}`. You can use Markdown syntax
+(e.g. `[//]: # ({sst-run-bash})`) to include this line without making it visible when rendered.
 
-The parsed commands will not be run through a shell, meaning that the program will not perform any expansions,
-pipelines, redirections or any other functions that shells are responsible for. This also means that popular shell
-builtin commands like `cd`, `export`, and `echo` will not be available or may not work as expected.  
+The parsed commands will be run through the Bash shell, but each command will be run through a separate instance
+of the shell, meaning that commands such as `cd` may not work as expected.  
 
 However, any environment variables referenced in the form of `$var` or `${var}` will expanded. In addition, bash-style
 multiline commands (i.e. non-quoted backslashes at the end of a line that indicate a line continuation) will also be 
