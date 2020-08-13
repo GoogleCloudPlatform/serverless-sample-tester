@@ -109,9 +109,19 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+
+	l, err := extractLifecycle(scanner, serviceName, gcrURL)
+	if err != nil {
+		return l, fmt.Errorf("[lifecycle.parseREADME] extracting commands out of %s: %w", filename, err)
+	}
+	return l, nil
+
+}
+
+func extractLifecycle(scanner *bufio.Scanner, serviceName, gcrURL string) (Lifecycle, error) {
 	codeBlocks, err := extractCodeBlocks(scanner)
 	if err != nil {
-		return nil, fmt.Errorf("lifecycle.extractCodeBlocks: %s: %w", filename, err)
+		return nil, fmt.Errorf("lifecycle.extractCodeBlocks: %w", err)
 	}
 
 	if len(codeBlocks) == 0 {
@@ -122,7 +132,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	for _, b := range codeBlocks {
 		cmds, err := b.toCommands(serviceName, gcrURL)
 		if err != nil {
-			return l, fmt.Errorf("codeBlock.toCommands: code blocks in %s: %w", filename, err)
+			return l, fmt.Errorf("codeBlock.toCommands: %w", err)
 		}
 
 		l = append(l, cmds...)
