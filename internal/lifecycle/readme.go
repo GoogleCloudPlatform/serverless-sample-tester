@@ -85,9 +85,9 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 		var cmd *exec.Cmd
 		if gcloudCommandRegexp.MatchString(line) {
 			sp := strings.Split(line, " ")
-			a := "gcloud " + strings.Join(append(util.GcloudCommonFlags, sp[1:]...), " ")
+			c := "gcloud " + strings.Join(append(util.GcloudCommonFlags, sp[1:]...), " ")
 
-			cmd = exec.Command("bash", "-c", a)
+			cmd = exec.Command("bash", "-c", c)
 		} else {
 			cmd = exec.Command("bash", "-c", line)
 		}

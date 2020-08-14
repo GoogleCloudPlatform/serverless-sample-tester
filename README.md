@@ -49,7 +49,7 @@ inside a code fence that is immediately preceded by a line containing `{sst-run-
 (e.g. `[//]: # ({sst-run-bash})`) to include this line without making it visible when rendered.
 
 The parsed commands will be run through the Bash shell, but each command will be run through a separate instance
-of the shell, meaning that commands such as `cd` may not work as expected.  
+of the shell, meaning that commands such as `cd` or `export` may not work as expected.  
 
 However, any environment variables referenced in the form of `$var` or `${var}` will expanded. In addition, bash-style
 multiline commands (i.e. non-quoted backslashes at the end of a line that indicate a line continuation) will also be 
