@@ -62,9 +62,10 @@ Instead, as mentioned above, do so by setting the `run/region` gcloud property.
 
 ### README location
 If you wish to parse a README file located somewhere other than the root directory, you can include the README's location
-in a `config.yaml` file in the root directory, using the key `readme`.
+in a `config.yaml` file in the root directory, using the key `readme`. You can specify an absolute directory, or you can simply
+specify a directory relative to the sample's directory.
 
-For example:
+For example, if the README is in the parent directory of the sample:
 ```text
 readme: ../README.md
 ```
