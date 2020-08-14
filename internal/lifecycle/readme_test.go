@@ -326,7 +326,7 @@ func TestToCommands(t *testing.T) {
 			h, err := codeBlock.toCommands(tt.serviceName, tt.gcrURL)
 			equalE = equalE && equalError(err, tt.toCommandsErr)
 			if !equalE {
-				t.Errorf("#%d.%d: error mismatch: %v, want %v", i, j, err, tt.toCommandsErr)
+				t.Errorf("#%d.%d: error mismatch\nhave: %v\nwant: %v", i, j, err, tt.toCommandsErr)
 			}
 
 			cmds = append(cmds, h...)
@@ -363,7 +363,7 @@ func TestExtractLifecycle(t *testing.T) {
 
 		eE := equalError(err, tt.extractLifecycleErr)
 		if !eE {
-			t.Errorf("#%d: error mismatch: %v, want %v", i, err, tt.extractLifecycleErr)
+			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tt.extractLifecycleErr)
 		}
 
 		if eE && !reflect.DeepEqual(c, tt.cmds) {
@@ -383,7 +383,7 @@ func TestExtractCodeBlocks(t *testing.T) {
 
 		h, err := extractCodeBlocks(s)
 		if !equalError(err, tt.extractCodeBlocksErr) {
-			t.Errorf("#%d: error mismatch: %v, want %v", i, err, tt.extractCodeBlocksErr)
+			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tt.extractCodeBlocksErr)
 			continue
 		}
 
