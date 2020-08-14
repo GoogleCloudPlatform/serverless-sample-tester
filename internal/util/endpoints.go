@@ -22,12 +22,19 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // test holds the openapi3.Operation and HTTP method associated with a single
 type test struct {
 	operation  *openapi3.Operation
 	httpMethod string
+}
+
+// httpClient is the client that used for making HTTP requests to Cloud Run services. It is the same as the
+// http.DefaultClient, except for the fact that it has a timeout for requests made.
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
 }
 
 // ValidateEndpoints tests all paths (represented by openapi3.Paths) with all HTTP methods and given response bodies
@@ -105,8 +112,6 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 // makeTestRequest returns a success bool based on whether the returned status code  was included in the provided
 // openapi3.Operation expected responses.
 func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation, identityToken string) (bool, error) {
-	client := &http.DefaultClient
-
 	req, err := http.NewRequest(httpMethod, endpointURL, reqBodyReader)
 	if err != nil {
 		return false, fmt.Errorf("[util.makeTestRequest] creating an http.Request: %w", err)
@@ -115,7 +120,7 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 	req.Header.Add("Authorization", "Bearer "+identityToken)
 	req.Header.Add("content-type", mimeType)
 
-	resp, err := (*client).Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return false, fmt.Errorf("[util.makeTestRequest]: creating executing a http.Request: %w", err)
 	}
