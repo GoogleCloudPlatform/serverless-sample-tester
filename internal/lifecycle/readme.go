@@ -118,8 +118,8 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	if err != nil {
 		return l, err
 	}
-	return l, nil
 
+	return l, nil
 }
 
 func extractLifecycle(scanner *bufio.Scanner, serviceName, gcrURL string) (Lifecycle, error) {
