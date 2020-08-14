@@ -19,6 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/sample"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"github.com/spf13/cobra"
+        "github.com/spf13/viper"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +34,10 @@ func Root(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Println("Setting up configuration values")
+        // Set up config file location
+        viper.SetConfigName("config")
+        viper.SetConfigType("yaml")
+        viper.AddConfigPath(sampleDir)
 	s, err := sample.NewSample(sampleDir)
 	if err != nil {
 		return err
