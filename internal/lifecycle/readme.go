@@ -43,6 +43,10 @@ var (
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
 	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
+	errCodeBlockNotClosed        = fmt.Errorf("unexpected EOF: code block not closed")
+	errCodeBlockStartNotFound    = fmt.Errorf("expecting start of code block immediately after code tag")
+	errEOFAfterCodeTag           = fmt.Errorf("unexpected EOF: file ended immediately after code tag")
+	errCodeBlockEndAfterLineCont = fmt.Errorf("unexpected end of code block: expecting command line continuation")
 )
 
 // codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
@@ -68,7 +72,7 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 			i++
 			if i >= len(cb) {
-				return nil, fmt.Errorf("unexpected end of code block: expecting command line continuation; code block dump:\n%s", strings.Join(cb, "\n"))
+				return nil, fmt.Errorf("%w; code block dump:\n%s",  errCodeBlockEndAfterLineCont, strings.Join(cb, "\n"))
 			}
 
 			l := cb[i]
@@ -112,7 +116,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 
 	l, err := extractLifecycle(scanner, serviceName, gcrURL)
 	if err != nil {
-		return l, fmt.Errorf("[lifecycle.parseREADME] extracting commands out of %s: %w", filename, err)
+		return l, err
 	}
 	return l, nil
 
@@ -157,14 +161,14 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 				if err := scanner.Err(); err != nil {
 					return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 				}
-				return nil, fmt.Errorf("unexpected EOF: file ended immediately after code tag")
+				return nil, errEOFAfterCodeTag
 			}
 			lineNum++
 
 			startCodeBlockLine := scanner.Text()
 			m := mdCodeFenceStartRegexp.MatchString(startCodeBlockLine)
 			if !m {
-				return nil, fmt.Errorf("line %d: expecting start of code block immediately after code tag", lineNum)
+				return nil, fmt.Errorf("line %d: %w", lineNum, errCodeBlockStartNotFound)
 			}
 
 			c := strings.Count(startCodeBlockLine, "`")
@@ -188,7 +192,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 			}
 
 			if !blockClosed {
-				return nil, fmt.Errorf("unexpected EOF: code block not closed")
+				return nil, errCodeBlockNotClosed
 			}
 
 			blocks = append(blocks, block)

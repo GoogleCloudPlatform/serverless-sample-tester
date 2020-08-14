@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"os/exec"
 	"reflect"
@@ -38,7 +39,7 @@ func equalError(a, b error) bool {
 	if b == nil {
 		return a == nil
 	}
-	return a.Error() == b.Error()
+	return errors.Is(a, b)
 }
 
 type test struct {
@@ -67,6 +68,34 @@ var tests = []test{
 		cmds: []*exec.Cmd{
 			exec.Command("echo", "hello", "world"),
 		},
+	},
+	{
+		in: "[//]: # ({sst-run-unix})\n" +
+			"```\n" +
+			"echo hello world\n",
+		codeBlocks:           nil,
+		cmds:                 nil,
+		extractLifecycleErr:  errCodeBlockNotClosed,
+		extractCodeBlocksErr: errCodeBlockNotClosed,
+	},
+	{
+		in: "[//]: # ({sst-run-unix})\n" +
+			"not start of code block\n" +
+			"```\n" +
+			"echo hello world\n" +
+			"```\n",
+		codeBlocks:           nil,
+		cmds:                 nil,
+		extractLifecycleErr:  errCodeBlockStartNotFound,
+		extractCodeBlocksErr: errCodeBlockStartNotFound,
+	},
+	{
+		in: "instuctions\n" +
+			"[//]: # ({sst-run-unix})\n",
+		codeBlocks:           nil,
+		cmds:                 nil,
+		extractLifecycleErr:  errEOFAfterCodeTag,
+		extractCodeBlocksErr: errEOFAfterCodeTag,
 	},
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
@@ -100,6 +129,20 @@ var tests = []test{
 		cmds: []*exec.Cmd{
 			exec.Command("echo", "multi", "line", "command"),
 		},
+	},
+	{
+		in: "[//]: # ({sst-run-unix})\n" +
+			"```\n" +
+			"echo multi \\\n" +
+			"```\n",
+		codeBlocks: []codeBlock{
+			[]string{
+				"echo multi \\",
+			},
+		},
+		cmds:                nil,
+		toCommandsErr:       errCodeBlockEndAfterLineCont,
+		extractLifecycleErr: errCodeBlockEndAfterLineCont,
 	},
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
@@ -307,12 +350,12 @@ var tests = []test{
 }
 
 func TestToCommands(t *testing.T) {
-	for i, tt := range tests {
-		err := setEnv(tt.env)
+	for i, tc := range tests {
+		err := setEnv(tc.env)
 		if err != nil {
 			t.Errorf("#%d: setEnv: %#v", i, err)
 
-			err = unsetEnv(tt.env)
+			err = unsetEnv(tc.env)
 			if err != nil {
 				t.Errorf("#%d: unsetEnv: %#v", i, err)
 			}
@@ -322,21 +365,21 @@ func TestToCommands(t *testing.T) {
 
 		equalE := true
 		var cmds []*exec.Cmd
-		for j, codeBlock := range tt.codeBlocks {
-			h, err := codeBlock.toCommands(tt.serviceName, tt.gcrURL)
-			equalE = equalE && equalError(err, tt.toCommandsErr)
+		for j, codeBlock := range tc.codeBlocks {
+			h, err := codeBlock.toCommands(tc.serviceName, tc.gcrURL)
+			equalE = equalE && equalError(err, tc.toCommandsErr)
 			if !equalE {
-				t.Errorf("#%d.%d: error mismatch\nhave: %v\nwant: %v", i, j, err, tt.toCommandsErr)
+				t.Errorf("#%d.%d: error mismatch\nhave: %v\nwant: %v", i, j, err, tc.toCommandsErr)
 			}
 
 			cmds = append(cmds, h...)
 		}
 
-		if equalE && !reflect.DeepEqual(cmds, tt.cmds) {
-			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, cmds, tt.cmds)
+		if equalE && !reflect.DeepEqual(cmds, tc.cmds) {
+			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, cmds, tc.cmds)
 		}
 
-		err = unsetEnv(tt.env)
+		err = unsetEnv(tc.env)
 		if err != nil {
 			t.Errorf("#%d: unsetEnv: %#v", i, err)
 		}
@@ -344,12 +387,12 @@ func TestToCommands(t *testing.T) {
 }
 
 func TestExtractLifecycle(t *testing.T) {
-	for i, tt := range tests {
-		err := setEnv(tt.env)
+	for i, tc := range tests {
+		err := setEnv(tc.env)
 		if err != nil {
 			t.Errorf("#%d: setEnv: %#v", i, err)
 
-			err = unsetEnv(tt.env)
+			err = unsetEnv(tc.env)
 			if err != nil {
 				t.Errorf("#%d: unsetEnv: %#v", i, err)
 			}
@@ -357,20 +400,20 @@ func TestExtractLifecycle(t *testing.T) {
 			continue
 		}
 
-		s := bufio.NewScanner(strings.NewReader(tt.in))
+		s := bufio.NewScanner(strings.NewReader(tc.in))
 		var c []*exec.Cmd
-		c, err = extractLifecycle(s, tt.serviceName, tt.gcrURL)
+		c, err = extractLifecycle(s, tc.serviceName, tc.gcrURL)
 
-		eE := equalError(err, tt.extractLifecycleErr)
+		eE := equalError(err, tc.extractLifecycleErr)
 		if !eE {
-			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tt.extractLifecycleErr)
+			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tc.extractLifecycleErr)
 		}
 
-		if eE && !reflect.DeepEqual(c, tt.cmds) {
-			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, c, tt.cmds)
+		if eE && !reflect.DeepEqual(c, tc.cmds) {
+			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, c, tc.cmds)
 		}
 
-		err = unsetEnv(tt.env)
+		err = unsetEnv(tc.env)
 		if err != nil {
 			t.Errorf("#%d: unsetEnv: %#v", i, err)
 		}
@@ -378,17 +421,17 @@ func TestExtractLifecycle(t *testing.T) {
 }
 
 func TestExtractCodeBlocks(t *testing.T) {
-	for i, tt := range tests {
-		s := bufio.NewScanner(strings.NewReader(tt.in))
+	for i, tc := range tests {
+		s := bufio.NewScanner(strings.NewReader(tc.in))
 
 		h, err := extractCodeBlocks(s)
-		if !equalError(err, tt.extractCodeBlocksErr) {
-			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tt.extractCodeBlocksErr)
+		if !equalError(err, tc.extractCodeBlocksErr) {
+			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tc.extractCodeBlocksErr)
 			continue
 		}
 
-		if !reflect.DeepEqual(h, tt.codeBlocks) {
-			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, h, tt.codeBlocks)
+		if !reflect.DeepEqual(h, tc.codeBlocks) {
+			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, h, tc.codeBlocks)
 			continue
 		}
 	}
