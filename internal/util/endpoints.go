@@ -123,7 +123,7 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		return false, fmt.Errorf("ioutil.ReadAll response body: %w", err)
+		return false, fmt.Errorf("ioutil.ReadAll http.Response.Body: %w", err)
 	}
 
 	statusCode := strconv.Itoa(resp.StatusCode)
