@@ -10,51 +10,41 @@ import (
 	"testing"
 )
 
+// setEnv takes a map of environment variables to their values and sets the program's environment accordingly.
 func setEnv(e map[string]string) error {
 	for k, v := range e {
-		err := os.Setenv(k, v)
-		if err != nil {
+		if err := os.Setenv(k, v); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
+// unsetEnv takes a map of environment variables to their values and unsets the environment variables in the program's
+// environment.
 func unsetEnv(e map[string]string) error {
 	for k, _ := range e {
-		err := os.Unsetenv(k)
-		if err != nil {
+		if err := os.Unsetenv(k); err != nil {
 			return err
 		}
 	}
-
 	return nil
-}
-
-func equalError(a, b error) bool {
-	if a == nil {
-		return b == nil
-	}
-	if b == nil {
-		return a == nil
-	}
-	return errors.Is(a, b)
 }
 
 type test struct {
-	in                   string
-	codeBlocks           []codeBlock
-	cmds                 []*exec.Cmd
-	toCommandsErr        error
-	extractLifecycleErr  error
-	extractCodeBlocksErr error
-	env                  map[string]string
-	serviceName          string
-	gcrURL               string
+	in                   string            // inupt markdown string
+	codeBlocks           []codeBlock       // expected result of extractCodeBlocks on in
+	cmds                 []*exec.Cmd       // expected result of toCommands on all codeBlocks and extractLifecycle on in
+	toCommandsErr        error             // expected toCommands return error
+	extractLifecycleErr  error             // expected extractLifecycle return error
+	extractCodeBlocksErr error             // expected extractCodeBlocks return error
+	env                  map[string]string // map of environment variables to values for this test
+	serviceName          string            // Cloud Run service name that should replace existing names
+	gcrURL               string            // Container Registry URL that should replace existing URLs
 }
 
 var tests = []test{
+	// single code block, single one-line command
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -69,6 +59,8 @@ var tests = []test{
 			exec.Command("echo", "hello", "world"),
 		},
 	},
+
+	// code block not closed
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -78,6 +70,8 @@ var tests = []test{
 		extractLifecycleErr:  errCodeBlockNotClosed,
 		extractCodeBlocksErr: errCodeBlockNotClosed,
 	},
+
+	// code block doesn't start immediately after code tag
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"not start of code block\n" +
@@ -89,6 +83,8 @@ var tests = []test{
 		extractLifecycleErr:  errCodeBlockStartNotFound,
 		extractCodeBlocksErr: errCodeBlockStartNotFound,
 	},
+
+	// EOF immediately after code tag
 	{
 		in: "instuctions\n" +
 			"[//]: # ({sst-run-unix})\n",
@@ -97,6 +93,8 @@ var tests = []test{
 		extractLifecycleErr:  errEOFAfterCodeTag,
 		extractCodeBlocksErr: errEOFAfterCodeTag,
 	},
+
+	// single code block, two one-line commands
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -114,6 +112,8 @@ var tests = []test{
 			exec.Command("echo", "line", "two"),
 		},
 	},
+
+	// single code block, single multiline command
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -130,6 +130,8 @@ var tests = []test{
 			exec.Command("echo", "multi", "line", "command"),
 		},
 	},
+
+	// line cont char but code block closes at next line
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -144,6 +146,8 @@ var tests = []test{
 		toCommandsErr:       errCodeBlockEndAfterLineCont,
 		extractLifecycleErr: errCodeBlockEndAfterLineCont,
 	},
+
+	// two code blocks, one single-line command in each, with markdown instructions in the middle
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -167,6 +171,8 @@ var tests = []test{
 			exec.Command("echo", "deploy", "command"),
 		},
 	},
+
+	// two code blocks, but only one is annotated with code tag
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -185,6 +191,8 @@ var tests = []test{
 			exec.Command("echo", "build", "and", "deploy", "command"),
 		},
 	},
+
+	// one code block, but not annotated with code tag
 	{
 		in: "```\n" +
 			"echo hello world\n" +
@@ -193,6 +201,8 @@ var tests = []test{
 		cmds:                nil,
 		extractLifecycleErr: errNoREADMECodeBlocksFound,
 	},
+
+	// expand environment variable test
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -210,6 +220,8 @@ var tests = []test{
 			"TEST_ENV": "hello world",
 		},
 	},
+
+	// replace Cloud Run service name with provided name
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -225,6 +237,8 @@ var tests = []test{
 		},
 		serviceName: "unique_service_name",
 	},
+
+	// replace Container Registry URL with provided URL
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -240,6 +254,8 @@ var tests = []test{
 		},
 		gcrURL: "gcr.io/unique/tag",
 	},
+
+	// replace multiline GCR URL with provided URL
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -257,6 +273,8 @@ var tests = []test{
 		},
 		gcrURL: "gcr.io/unique/tag",
 	},
+
+	// replace Cloud Run service name and GCR URL with provided inputs
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -273,7 +291,10 @@ var tests = []test{
 		serviceName: "unique_service_name",
 		gcrURL:      "gcr.io/unique/tag",
 	},
-	//{ this test breaks right now (issue #3)
+
+	// replace Cloud Run service name and GCR URL with `--image url` syntax
+	// this test breaks right now (issue #3)
+	//{
 	//	in: "[//]: # ({sst-run-unix})\n" +
 	//		"```\n" +
 	//		"gcloud run services deploy hello_world --image gcr.io/hello/world\n" +
@@ -289,6 +310,8 @@ var tests = []test{
 	//	serviceName: "unique_service_name",
 	//	gcrURL: "gcr.io/unique/tag",
 	//},
+
+	// replace Cloud Run service name and GCR URL with provided inputs and expand environment variables
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -308,6 +331,8 @@ var tests = []test{
 		serviceName: "unique_service_name",
 		gcrURL:      "gcr.io/unique/tag",
 	},
+
+	// replace Cloud Run service name provided name in command with multiline arguments
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -326,6 +351,8 @@ var tests = []test{
 		serviceName: "unique_service_name",
 		gcrURL:      "gcr.io/unique/tag",
 	},
+
+	// replace Cloud Run service name provided name and expand environment variables in command with multiline arguments
 	{
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
@@ -351,71 +378,65 @@ var tests = []test{
 
 func TestToCommands(t *testing.T) {
 	for i, tc := range tests {
-		err := setEnv(tc.env)
-		if err != nil {
-			t.Errorf("#%d: setEnv: %#v", i, err)
+		if err := setEnv(tc.env); err != nil {
+			t.Errorf("#%d: setEnv: %v", i, err)
 
-			err = unsetEnv(tc.env)
-			if err != nil {
-				t.Errorf("#%d: unsetEnv: %#v", i, err)
+			if err = unsetEnv(tc.env); err != nil {
+				t.Errorf("#%d: unsetEnv: %v", i, err)
 			}
 
 			continue
 		}
 
-		equalE := true
+		matchE := true
 		var cmds []*exec.Cmd
 		for j, codeBlock := range tc.codeBlocks {
 			h, err := codeBlock.toCommands(tc.serviceName, tc.gcrURL)
-			equalE = equalE && equalError(err, tc.toCommandsErr)
-			if !equalE {
-				t.Errorf("#%d.%d: error mismatch\nhave: %v\nwant: %v", i, j, err, tc.toCommandsErr)
+			matchE = matchE && errors.Is(err, tc.toCommandsErr)
+			if !matchE {
+				t.Errorf("#%d.%d: error mismatch\nwant: %v\ngot: %v", i, j, tc.toCommandsErr, err)
 			}
 
 			cmds = append(cmds, h...)
 		}
 
-		if equalE && !reflect.DeepEqual(cmds, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, cmds, tc.cmds)
+		if matchE && !reflect.DeepEqual(cmds, tc.cmds) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
 		}
 
-		err = unsetEnv(tc.env)
-		if err != nil {
-			t.Errorf("#%d: unsetEnv: %#v", i, err)
+		if err := unsetEnv(tc.env); err != nil {
+			t.Errorf("#%d: unsetEnv: %v", i, err)
 		}
 	}
 }
 
 func TestExtractLifecycle(t *testing.T) {
 	for i, tc := range tests {
-		err := setEnv(tc.env)
-		if err != nil {
-			t.Errorf("#%d: setEnv: %#v", i, err)
+		if err := setEnv(tc.env); err != nil {
+			t.Errorf("#%d: setEnv: %v", i, err)
 
-			err = unsetEnv(tc.env)
-			if err != nil {
-				t.Errorf("#%d: unsetEnv: %#v", i, err)
+			if err = unsetEnv(tc.env); err != nil {
+				t.Errorf("#%d: unsetEnv: %v", i, err)
 			}
 
 			continue
 		}
 
 		s := bufio.NewScanner(strings.NewReader(tc.in))
-		var c []*exec.Cmd
-		c, err = extractLifecycle(s, tc.serviceName, tc.gcrURL)
+		var cmds []*exec.Cmd
+		cmds, err := extractLifecycle(s, tc.serviceName, tc.gcrURL)
 
-		eE := equalError(err, tc.extractLifecycleErr)
-		if !eE {
-			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tc.extractLifecycleErr)
+		mE := errors.Is(err, tc.extractLifecycleErr)
+		if !mE {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractLifecycleErr, err)
 		}
 
-		if eE && !reflect.DeepEqual(c, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, c, tc.cmds)
+		if mE && !reflect.DeepEqual(cmds, tc.cmds) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
 		}
 
-		err = unsetEnv(tc.env)
-		if err != nil {
-			t.Errorf("#%d: unsetEnv: %#v", i, err)
+		if err = unsetEnv(tc.env); err != nil {
+			t.Errorf("#%d: unsetEnv: %v", i, err)
 		}
 	}
 }
@@ -424,14 +445,14 @@ func TestExtractCodeBlocks(t *testing.T) {
 	for i, tc := range tests {
 		s := bufio.NewScanner(strings.NewReader(tc.in))
 
-		h, err := extractCodeBlocks(s)
-		if !equalError(err, tc.extractCodeBlocksErr) {
-			t.Errorf("#%d: error mismatch\nhave: %v\nwant: %v", i, err, tc.extractCodeBlocksErr)
+		codeBlocks, err := extractCodeBlocks(s)
+		if !errors.Is(err, tc.extractCodeBlocksErr) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractCodeBlocksErr, err)
 			continue
 		}
 
-		if !reflect.DeepEqual(h, tc.codeBlocks) {
-			t.Errorf("#%d: result mismatch\nhave: %#+v\nwant: %#+v", i, h, tc.codeBlocks)
+		if !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.codeBlocks, codeBlocks)
 			continue
 		}
 	}

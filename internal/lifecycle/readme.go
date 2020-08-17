@@ -102,9 +102,10 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 	return cmds, nil
 }
 
-// parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
-// listed above and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
-// Registry tag with the provided inputs.
+// parseREADME parses a README file with the given name. It parses terminal commands in code blocks annotated by the
+// codeTag and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
+// Registry tag with the provided inputs. It also expands environment variables and supports bash-style line
+// continuations.
 func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -114,14 +115,13 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 
 	scanner := bufio.NewScanner(file)
 
-	l, err := extractLifecycle(scanner, serviceName, gcrURL)
-	if err != nil {
-		return l, err
-	}
-
-	return l, nil
+	return extractLifecycle(scanner, serviceName, gcrURL)
 }
 
+// extractLifecycle is a helper function for parseREADME. It takes a scanner that reads from a Markdown file and parses
+// terminal commands in code blocks annotated by the codeTag and loads them into a Lifecycle. In the process, it
+// replaces the Cloud Run service name and Container Registry tag with the provided inputs. It also expands environment
+// variables and supports bash-style line continuations.
 func extractLifecycle(scanner *bufio.Scanner, serviceName, gcrURL string) (Lifecycle, error) {
 	codeBlocks, err := extractCodeBlocks(scanner)
 	if err != nil {
