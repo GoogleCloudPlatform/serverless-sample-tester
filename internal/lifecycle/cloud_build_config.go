@@ -20,13 +20,17 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
+// TODO: comment here
 const runRegionSubstitution = "_SST_RUN_REGION"
 
-func parseCloudBuildConfig(filename, serviceName, gcrURL, runRegion string, substitutions map[string]string) (Lifecycle, error) {
+// getCloudBuildConfigLifecycle returns a Lifecycle for the executing the provided Cloud Build config file. It creates
+// and uses a temporary copy of the file where it replaces the Cloud Run service names and Container Registry tags with
+// the provided inputs. It provides also passes in the provided substitutions as well a runRegionSubstitution with the
+// provided region.
+func getCloudBuildConfigLifecycle(filename, serviceName, gcrURL, runRegion string, substitutions map[string]string) (Lifecycle, error) {
 	config := make(map[string]interface{})
 
 	buildConfigBytes, err := ioutil.ReadFile(filename)
@@ -39,29 +43,23 @@ func parseCloudBuildConfig(filename, serviceName, gcrURL, runRegion string, subs
 		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] unmarshaling Cloud Build config file: %w", err)
 	}
 
-	// Replace Cloud Run service names and Cloud Container Registry URLs
+	// Replace Cloud Run service names and Container Registry URLs
 	for stepIndex := range config["steps"].([]interface{}) {
-		runCommand := false
-		lastArgIndex := -1
-
+		var args []string
 		for argIndex := range config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["args"].([]interface{}) {
 			arg := config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["args"].([]interface{})[argIndex].(string)
+			arg = gcrURLRegexp.ReplaceAllString(arg, gcrURL)
 
-			if strings.Contains(arg, "run") {
-				runCommand = true
-			}
-
-			if !strings.Contains(arg, "--") {
-				lastArgIndex = argIndex
-			}
-
-			arg = replaceGCRURL(arg, gcrURL)
-			config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["args"].([]interface{})[argIndex] = arg
+			args = append(args, arg)
 		}
 
-		if runCommand && lastArgIndex != -1 {
-			config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["args"].([]interface{})[lastArgIndex] = serviceName
+		prog := config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["name"].(string)
+		err := replaceServiceName(prog, args, serviceName)
+		if err != nil {
+			return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] replacing Cloud Run service name in Cloud Build config step args: %w", err)
 		}
+
+		config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["args"] = args
 	}
 
 	configMarshalBytes, err := yaml.Marshal(&config)
@@ -84,27 +82,23 @@ func parseCloudBuildConfig(filename, serviceName, gcrURL, runRegion string, subs
 	return buildCloudBuildConfigLifecycle(tempBuildConfigFile.Name(), runRegion, substitutions), nil
 }
 
+// buildCloudBuildConfigLifecycle returns a Lifecycle with a single command that calls gcloud builds subit and passes
+// in the provided Cloud Build config file. It also adds a `--substitutions` flag according to the substitutions
+// provided and adds a substitution for the Cloud Run region with the name runRegionSubstitution and value provided.
 func buildCloudBuildConfigLifecycle(buildConfigFilename, runRegion string, substitutions map[string]string) Lifecycle {
 	a := append(util.GcloudCommonFlags, "builds", "submit",
 		fmt.Sprintf("--config=%s", buildConfigFilename))
 
-	subsitutions, empty := substitutionsString(substitutions, runRegion)
-	if !empty {
-		a = append(a, fmt.Sprintf("--substitutions=%s", subsitutions))
-	}
+	subsitutions := substitutionsString(substitutions, runRegion)
+	a = append(a, fmt.Sprintf("--substitutions=%s", subsitutions))
 
 	return Lifecycle{exec.Command("gcloud", a...)}
 }
 
-// replaceServiceName takes a terminal command string as input and replaces the URL of a container image stored in the
-// GCP Container Registry with the given URL.
-func replaceGCRURL(commandStr string, gcrURL string) string {
-	re := regexp.MustCompile(`gcr.io/.+/\S+`)
-	return re.ReplaceAllString(commandStr, gcrURL)
-}
-
-// substitutionsString
-func substitutionsString(m map[string]string, runRegion string) (string, bool) {
+// substitutionsString takes a string to string map and converts it into an argument for the `gcloud builds submit`
+// `--config` file. It treats the keys in the map as the substitutions and the values as the substitution values. It
+// also adds a substitution for the Cloud Run region with the name runRegionSubstitution and value provided.
+func substitutionsString(m map[string]string, runRegion string) string {
 	var subs []string
 	subs = append(subs, fmt.Sprintf("%s=%s", runRegionSubstitution, runRegion))
 
@@ -112,5 +106,5 @@ func substitutionsString(m map[string]string, runRegion string) (string, bool) {
 		subs = append(subs, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	return strings.Join(subs, ","), false
+	return strings.Join(subs, ",")
 }

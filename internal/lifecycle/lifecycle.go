@@ -23,7 +23,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
+
+var gcrURLRegexp = regexp.MustCompile(`gcr.io/.+/\S+`)
 
 // Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
 type Lifecycle []*exec.Cmd
@@ -55,7 +59,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 	cloudBuildConfigE := err == nil
 
 	if cloudBuildConfigE {
-		lifecycle, err := parseCloudBuildConfig(cloudBuildConfigPath, serviceName, gcrURL, runRegion, cloudBuildConfSubs)
+		lifecycle, err := getCloudBuildConfigLifecycle(cloudBuildConfigPath, serviceName, gcrURL, runRegion, cloudBuildConfSubs)
 		if err == nil {
 			log.Println("Using cloud build config file")
 			return lifecycle, nil
@@ -139,4 +143,39 @@ func buildDefaultJavaLifecycle(serviceName, gcrURL string) Lifecycle {
 	)
 
 	return l
+}
+
+// replaceServiceName takes a terminal command string as input and replaces the Cloud Run service name, if any.
+// If the user specified the service name in $CLOUD_RUN_SERVICE_NAME, it replaces that. Otherwise, as a failsafe,
+// it detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
+// with the input service name.
+func replaceServiceName(name string, args []string, serviceName string) error {
+	if !strings.Contains(name, "gcloud") {
+		return nil
+	}
+
+	// Detects if the user specified the Cloud Run service name in an environment variable
+	for i := 0; i < len(args); i++ {
+		if args[i] == os.ExpandEnv("$CLOUD_RUN_SERVICE_NAME") {
+			args[i] = serviceName
+			return nil
+		}
+	}
+
+	// Searches for specific gcloud keywords and takes service name from them
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == "deploy" || args[i] == "update" {
+			args[i+1] = serviceName
+			return nil
+		}
+	}
+
+	// Provides a failsafe if neither of the above options work
+	for i := len(args) - 1; i >= 0; i-- {
+		if !strings.Contains(args[i], "--") {
+			args[i] = serviceName
+			break
+		}
+	}
+	return nil
 }
