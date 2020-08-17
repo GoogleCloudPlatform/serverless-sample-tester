@@ -47,7 +47,7 @@ func (l Lifecycle) Execute(commandsDir string) error {
 // NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
 // those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func NewLifecycle(sampleDir, serviceName, gcrURL string, cloudBuildConfSubs map[string]string) (Lifecycle, error) {
+func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildConfSubs map[string]string) (Lifecycle, error) {
 	// First try Cloud Build Config file
 	cloudBuildConfigPath := fmt.Sprintf("%s/cloudbuild.yaml", sampleDir)
 
@@ -55,7 +55,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string, cloudBuildConfSubs map[
 	cloudBuildConfigE := err == nil
 
 	if cloudBuildConfigE {
-		lifecycle, err := parseCloudBuildConfig(cloudBuildConfigPath, serviceName, gcrURL, cloudBuildConfSubs)
+		lifecycle, err := parseCloudBuildConfig(cloudBuildConfigPath, serviceName, gcrURL, runRegion, cloudBuildConfSubs)
 		if err == nil {
 			log.Println("Using cloud build config file")
 			return lifecycle, nil

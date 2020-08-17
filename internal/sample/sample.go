@@ -41,6 +41,9 @@ type Sample struct {
 
 	// The URL location of this sample's build container image in the GCP Container Registry.
 	cloudContainerImageURL string
+
+	// The Cloud Run region this sample will deploy to.
+	runRegion string
 }
 
 // NewSample creates a new sample object for the sample located in the provided local directory.
@@ -60,13 +63,20 @@ func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, error
 	}
 	cloudContainerImageURL := fmt.Sprintf("gcr.io/%s/%s", projectID, containerTag)
 
+	a = append(util.GcloudCommonFlags, "config", "get-value", "run/region")
+	runRegion, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
+
+	if err != nil {
+		return nil, fmt.Errorf("[sample.NewSample] getting gcloud cloud run default region: %w", err)
+	}
+
 	serviceName, err := gcloud.ServiceName(name)
 	if err != nil {
 		return nil, fmt.Errorf("gcloud.ServiceName: %s sample: %w", name, err)
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
-	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL, cloudBuildConfSubs)
+	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL, runRegion, cloudBuildConfSubs)
 	if err != nil {
 		return nil, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
 	}
@@ -77,6 +87,7 @@ func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, error
 		Service:                service,
 		BuildDeployLifecycle:   buildDeployLifecycle,
 		cloudContainerImageURL: cloudContainerImageURL,
+		runRegion:              runRegion,
 	}
 	return s, nil
 }

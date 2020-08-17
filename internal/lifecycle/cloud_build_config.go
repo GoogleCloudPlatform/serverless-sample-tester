@@ -24,7 +24,9 @@ import (
 	"strings"
 )
 
-func parseCloudBuildConfig(filename, serviceName, gcrURL string, substitutions map[string]string) (Lifecycle, error) {
+const runRegionSubstitution = "_SST_RUN_REGION"
+
+func parseCloudBuildConfig(filename, serviceName, gcrURL, runRegion string, substitutions map[string]string) (Lifecycle, error) {
 	config := make(map[string]interface{})
 
 	buildConfigBytes, err := ioutil.ReadFile(filename)
@@ -36,7 +38,6 @@ func parseCloudBuildConfig(filename, serviceName, gcrURL string, substitutions m
 	if err != nil {
 		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] unmarshaling Cloud Build config file: %w", err)
 	}
-
 
 	// Replace Cloud Run service names and Cloud Container Registry URLs
 	for stepIndex := range config["steps"].([]interface{}) {
@@ -80,14 +81,14 @@ func parseCloudBuildConfig(filename, serviceName, gcrURL string, substitutions m
 		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] closing temporary file: %w", err)
 	}
 
-	return buildCloudBuildConfigLifecycle(tempBuildConfigFile.Name(), substitutions), nil
+	return buildCloudBuildConfigLifecycle(tempBuildConfigFile.Name(), runRegion, substitutions), nil
 }
 
-func buildCloudBuildConfigLifecycle(buildConfigFilename string, substitutions map[string]string) Lifecycle {
+func buildCloudBuildConfigLifecycle(buildConfigFilename, runRegion string, substitutions map[string]string) Lifecycle {
 	a := append(util.GcloudCommonFlags, "builds", "submit",
 		fmt.Sprintf("--config=%s", buildConfigFilename))
 
-	subsitutions, empty := substitutionsString(substitutions)
+	subsitutions, empty := substitutionsString(substitutions, runRegion)
 	if !empty {
 		a = append(a, fmt.Sprintf("--substitutions=%s", subsitutions))
 	}
@@ -102,12 +103,11 @@ func replaceGCRURL(commandStr string, gcrURL string) string {
 	return re.ReplaceAllString(commandStr, gcrURL)
 }
 
-func substitutionsString(m map[string]string) (string, bool) {
-	if len(m) == 0 {
-		return "", true
-	}
-
+// substitutionsString
+func substitutionsString(m map[string]string, runRegion string) (string, bool) {
 	var subs []string
+	subs = append(subs, fmt.Sprintf("%s=%s", runRegionSubstitution, runRegion))
+
 	for k, v := range m {
 		subs = append(subs, fmt.Sprintf("%s=%s", k, v))
 	}
