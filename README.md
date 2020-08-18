@@ -91,4 +91,9 @@ then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
 
 ### Defaults
 If comment code tags aren't added to your README, the program will fall back to reasonable defaults to build and deploy
-your sample to Cloud Run based on whether your sample is Java-based (has a `pom.xml` in its root directory) or not.
+your sample to Cloud Run based on whether your sample is Java-based (has a pom.xml) or not.
+
+If your sample is Java-based, your sample will be built and pushed to the Container Registry using `mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=tag`.
+Otherwise, your sample will be built and pushed to the Container Registry using `gcloud builds submit --tag=[tag]`. 
+
+In both cases, `gcloud run deploy` will be used to deploy the container image to Cloud Run.

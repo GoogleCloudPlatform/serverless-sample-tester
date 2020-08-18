@@ -45,7 +45,7 @@ func (l Lifecycle) Execute(commandsDir string) error {
 }
 
 // NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
-// those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
+// those options are set up, it falls back to reasonable defaults based on whether the sample is Java-based
 // (has a pom.xml) or not.
 func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 	var readmePath string
@@ -81,11 +81,11 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 	pomE := err == nil
 
 	if pomE {
-		log.Println("Using default build and deploy commands for java samples")
+		log.Println("Using default build and deploy commands for Java samples")
 		return buildDefaultJavaLifecycle(serviceName, gcrURL), nil
 	}
 
-	log.Println("Using default build and deploy commands for non-java samples")
+	log.Println("Using default build and deploy commands for non-Java samples")
 	return buildDefaultLifecycle(serviceName, gcrURL), nil
 }
 
