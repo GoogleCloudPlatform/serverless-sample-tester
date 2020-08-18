@@ -25,12 +25,14 @@ import (
 	"path/filepath"
 )
 
+// InitConfig initializes binds command line flags and environment variables to viper configuration keys. This should
+// be called before the provided cobra.Command is executed.
 func InitConfig(rootCmd *cobra.Command) {
 	viper.SetEnvPrefix("sst")
 
-	viper.BindEnv("substitutions")
-	rootCmd.PersistentFlags().StringToString("substitutions", map[string]string{}, "dsfasd")
-	viper.BindPFlag("substitutions", rootCmd.PersistentFlags().Lookup("substitutions"))
+	viper.BindEnv("cloud_build_subs")
+	rootCmd.PersistentFlags().StringToString("cloud-build-subs", map[string]string{}, "")
+	viper.BindPFlag("cloud_build_subs", rootCmd.PersistentFlags().Lookup("cloud-build-subs"))
 }
 
 // Root is responsible for the root command. It handles the application flow.
@@ -42,7 +44,7 @@ func Root(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Println("Setting up configuration values")
-	s, err := sample.NewSample(sampleDir, viper.GetStringMapString("substitutions"))
+	s, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
 	if err != nil {
 		return err
 	}

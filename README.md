@@ -39,7 +39,18 @@ If you'd like, you can specify the build and deploy process for your sample in a
 with the name `cloudbuild.yaml` located in the root directory of your sample. Make sure to deploy to the Cloud Run fully
 managed platform.
 
-It's required that you use the `_SST_RUN_REGION` [subustition](https://cloud.google.com/cloud-build/docs/configuring-builds/substitute-variable-values)
+You can specify the substitutions you'd like passed to your Cloud Build config by either setting the
+`SST_CLOUD_BUILD_SUBS` environment variable in JSON format or the `--cloud-build-subs` flag in comma-separated format
+when calling the `sst` executable. For example:
+
+```bash
+export SST_CLOUD_BUILD_SUBS="{\"_FOO\": \"hello\",\"_BAR\": \"world\"}"
+sst [sample-dir] # or
+
+sst [sample-dir] --cloud-build-subs="_FOO=hello,_BAR=world"
+```
+
+It's required that you use the `_SST_RUN_REGION` [substitution](https://cloud.google.com/cloud-build/docs/configuring-builds/substitute-variable-values)
 for the Cloud Run region you deploy your sample to. The substitution will be set as the same region specified by your
 local gcloud installation's `run/region` gcloud property.
 

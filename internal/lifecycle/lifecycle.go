@@ -172,7 +172,14 @@ func replaceServiceName(name string, args []string, serviceName string) error {
 
 	// Provides a failsafe if neither of the above options work
 	for i := len(args) - 1; i >= 0; i-- {
+<<<<<<< HEAD
 		if !strings.Contains(args[i], "--") {
+=======
+		// Check if arg before is a flag without an argument
+		lastArgFlag := i-1 != -1 && (strings.HasPrefix(args[i], "--") && !strings.Contains(args[i], "="))
+
+		if args[i] == s && !lastArgFlag {
+>>>>>>> various cloud build config updates
 			args[i] = serviceName
 			break
 		}
