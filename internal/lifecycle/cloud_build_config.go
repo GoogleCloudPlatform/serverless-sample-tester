@@ -19,6 +19,8 @@ import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"log"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -30,18 +32,19 @@ const runRegionSubstitution = "_SST_RUN_REGION"
 // getCloudBuildConfigLifecycle returns a Lifecycle for the executing the provided Cloud Build config file. It creates
 // and uses a temporary copy of the file where it replaces the Cloud Run service names and Container Registry tags with
 // the provided inputs. It provides also passes in the provided substitutions as well a runRegionSubstitution with the
-// provided region.
-func getCloudBuildConfigLifecycle(filename, serviceName, gcrURL, runRegion string, substitutions map[string]string) (Lifecycle, error) {
+// provided region. Also returns a function that removes the temp file created while making Lifecycle. This function
+// should be called after Lifecycle is done executing.
+func getCloudBuildConfigLifecycle(filename, serviceName, gcrURL, runRegion string, substitutions map[string]string) (Lifecycle, func(), error) {
 	config := make(map[string]interface{})
 
 	buildConfigBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] reading Cloud Build config file: %w", err)
+		return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] reading Cloud Build config file: %w", err)
 	}
 
 	err = yaml.Unmarshal(buildConfigBytes, &config)
 	if err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] unmarshaling Cloud Build config file: %w", err)
+		return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] unmarshaling Cloud Build config file: %w", err)
 	}
 
 	// Replace Cloud Run service names and Container Registry URLs
@@ -57,7 +60,7 @@ func getCloudBuildConfigLifecycle(filename, serviceName, gcrURL, runRegion strin
 		prog := config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["name"].(string)
 		err := replaceServiceName(prog, args, serviceName)
 		if err != nil {
-			return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] replacing Cloud Run service name in Cloud Build config step args: %w", err)
+			return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] replacing Cloud Run service name in Cloud Build config step args: %w", err)
 		}
 
 		config["steps"].([]interface{})[stepIndex].(map[interface{}]interface{})["args"] = args
@@ -65,22 +68,28 @@ func getCloudBuildConfigLifecycle(filename, serviceName, gcrURL, runRegion strin
 
 	configMarshalBytes, err := yaml.Marshal(&config)
 	if err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] marshaling modified Cloud Build config: %w", err)
+		return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] marshaling modified Cloud Build config: %w", err)
 	}
 
-	tempBuildConfigFile, err := util.CreateTempFile()
+	tempBuildConfigFile, err := ioutil.TempFile("", "example")
 	if err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] creating temporary file: %w", err)
+		return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] creating Temp File: %w\n", err)
+	}
+	cleanup := func() {
+		err := os.Remove(tempBuildConfigFile.Name())
+		if err != nil {
+			log.Printf("Error removing Temp File for Cloud Build config: %v\n", err)
+		}
 	}
 
 	if _, err := tempBuildConfigFile.Write(configMarshalBytes); err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] writing to temporary file: %w", err)
+		return nil, cleanup, fmt.Errorf("[lifecycle.parseCloudBuildConfig] writing to temporary file: %w", err)
 	}
 	if err := tempBuildConfigFile.Close(); err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] closing temporary file: %w", err)
+		return nil, cleanup, fmt.Errorf("[lifecycle.parseCloudBuildConfig] closing temporary file: %w", err)
 	}
 
-	return buildCloudBuildConfigLifecycle(tempBuildConfigFile.Name(), runRegion, substitutions), nil
+	return buildCloudBuildConfigLifecycle(tempBuildConfigFile.Name(), runRegion, substitutions), cleanup, nil
 }
 
 // buildCloudBuildConfigLifecycle returns a Lifecycle with a single command that calls gcloud builds subit and passes

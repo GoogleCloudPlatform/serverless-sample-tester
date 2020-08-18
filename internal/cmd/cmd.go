@@ -44,9 +44,12 @@ func Root(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Println("Setting up configuration values")
-	s, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
+	s, cleanup, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
 	if err != nil {
 		return err
+	}
+	if cleanup != nil {
+		defer cleanup()
 	}
 
 	log.Println("Loading test endpoints")

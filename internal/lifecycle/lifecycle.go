@@ -50,8 +50,10 @@ func (l Lifecycle) Execute(commandsDir string) error {
 
 // NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
 // those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
-// (has a pom.xml) that doesn't have a Dockerfile or isn't.
-func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildConfSubs map[string]string) (Lifecycle, error) {
+// (has a pom.xml) that doesn't have a Dockerfile or isn't. Also returns a function that cleans up any created local
+// resources (e.g. temp files) created while making creating this Lifecycle. This function should be called after this
+// Lifecycle is done executing.
+func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildConfSubs map[string]string) (Lifecycle, func(), error) {
 	// First try Cloud Build Config file
 	cloudBuildConfigPath := fmt.Sprintf("%s/cloudbuild.yaml", sampleDir)
 
@@ -59,13 +61,13 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 	cloudBuildConfigE := err == nil
 
 	if cloudBuildConfigE {
-		lifecycle, err := getCloudBuildConfigLifecycle(cloudBuildConfigPath, serviceName, gcrURL, runRegion, cloudBuildConfSubs)
+		lifecycle, cleanup, err := getCloudBuildConfigLifecycle(cloudBuildConfigPath, serviceName, gcrURL, runRegion, cloudBuildConfSubs)
 		if err == nil {
 			log.Println("Using cloud build config file")
-			return lifecycle, nil
+			return lifecycle, cleanup, nil
 		}
 
-		return nil, fmt.Errorf("[lifecycle.NewLifecycle] using cloud build config file %s: %v\n", cloudBuildConfigPath, err)
+		return nil, cleanup, fmt.Errorf("[lifecycle.NewLifecycle] using cloud build config file %s: %v\n", cloudBuildConfigPath, err)
 	}
 
 	// Then try README parsing
@@ -85,11 +87,11 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 		log.Println("README.md location: " + readmePath)
 		if err == nil {
 			log.Println("Using build and deploy commands found in README.md")
-			return lifecycle, nil
+			return lifecycle, nil, nil
 		}
 
 		if !errors.Is(err, errNoReadmeCodeBlocksFound) {
-			return nil, fmt.Errorf("lifecycle.parseREADME: %s: %w", readmePath, err)
+			return nil, nil, fmt.Errorf("lifecycle.parseREADME: %s: %w", readmePath, err)
 		}
 
 		log.Printf("No code blocks immediately preceded by %s found in README.md\n", codeTag)
@@ -109,11 +111,11 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 
 	if pomE && !dockerfileE {
 		log.Println("Using default build and deploy commands for java samples without a Dockerfile")
-		return buildDefaultJavaLifecycle(serviceName, gcrURL), nil
+		return buildDefaultJavaLifecycle(serviceName, gcrURL), nil, nil
 	}
 
 	log.Println("Using default build and deploy commands for non-java samples or java samples with a Dockerfile")
-	return buildDefaultLifecycle(serviceName, gcrURL), nil
+	return buildDefaultLifecycle(serviceName, gcrURL), nil, nil
 }
 
 // buildDefaultLifecycle builds a build and deploy command lifecycle with reasonable defaults for a non-Java
@@ -172,14 +174,7 @@ func replaceServiceName(name string, args []string, serviceName string) error {
 
 	// Provides a failsafe if neither of the above options work
 	for i := len(args) - 1; i >= 0; i-- {
-<<<<<<< HEAD
 		if !strings.Contains(args[i], "--") {
-=======
-		// Check if arg before is a flag without an argument
-		lastArgFlag := i-1 != -1 && (strings.HasPrefix(args[i], "--") && !strings.Contains(args[i], "="))
-
-		if args[i] == s && !lastArgFlag {
->>>>>>> various cloud build config updates
 			args[i] = serviceName
 			break
 		}
