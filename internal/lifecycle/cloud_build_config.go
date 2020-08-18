@@ -23,7 +23,8 @@ import (
 	"strings"
 )
 
-// TODO: comment here
+// runRegionSubstitution is the substitution used to specify which Cloud Run region Cloud Build configs will deploy
+// samples to.
 const runRegionSubstitution = "_SST_RUN_REGION"
 
 // getCloudBuildConfigLifecycle returns a Lifecycle for the executing the provided Cloud Build config file. It creates

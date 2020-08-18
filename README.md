@@ -34,6 +34,15 @@ Run Serverless Sample Tester by passing in the root directory of the sample you 
 ./sst [target-dir]
 ```
 
+### Cloud Build Config
+If you'd like, you can specify the build and deploy process for your sample in a [Cloud Build config file](https://cloud.google.com/cloud-build/docs/build-config)
+with the name `cloudbuild.yaml` located in the root directory of your sample. Make sure to deploy to the Cloud Run fully
+managed platform.
+
+It's required that you use the `_SST_RUN_REGION` [subustition](https://cloud.google.com/cloud-build/docs/configuring-builds/substitute-variable-values)
+for the Cloud Run region you deploy your sample to. The substitution will be set as the same region specified by your
+local gcloud installation's `run/region` gcloud property.
+
 ### README parsing
 To parse build and deploy commands from your sample's README, include the following comment code tag before each gcloud command:
 
@@ -79,3 +88,8 @@ what the name is, but it may not always be accurate. For example, if your README
 gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
 ```
 then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
+
+### Reasonable defaults
+If a `cloudbuild.yaml` file isn't located in your sample's root directory and comment code tags aren't added to your
+README, the program will fall back to reasonable defaults to build and deploy your sample to Cloud Run based on whether
+your sample is java-based and doesn't have a Dockerfile or isn't.
