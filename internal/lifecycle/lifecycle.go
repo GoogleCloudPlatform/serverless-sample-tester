@@ -87,14 +87,13 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 // project. It uses `gcloud builds submit` for building the samples container image and submitting it to the container
 // and `gcloud run deploy` for deploying it to Cloud Run.
 func buildDefaultLifecycle(serviceName, gcrURL string) Lifecycle {
-	a0 := append(util.GcloudCommonFlags, "builds", "submit", fmt.Sprintf("--tag=%s", gcrURL))
-	a1 := append(util.GcloudCommonFlags, "run", "deploy", serviceName, fmt.Sprintf("--image=%s", gcrURL),
-		"--platform=managed")
+	c0 := exec.Command("gcloud", "builds", "submit", fmt.Sprintf("--tag=%s", gcrURL))
+	c0.Env = append(os.Environ(), util.GcloudCommonEnv...)
 
-	return Lifecycle{
-		exec.Command("gcloud", a0...),
-		exec.Command("gcloud", a1...),
-	}
+	c1 := exec.Command("gcloud", "run", "deploy", serviceName, fmt.Sprintf("--image=%s", gcrURL), "--platform=managed")
+	c1.Env = append(os.Environ(), util.GcloudCommonEnv...)
+
+	return Lifecycle{c0, c1}
 }
 
 // buildDefaultJavaLifecycle builds a build and deploy command lifecycle with reasonable defaults for Java

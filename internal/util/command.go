@@ -23,10 +23,10 @@ import (
 	"strings"
 )
 
-// GcloudCommonFlags is a slice of common flags that should be added as arguments to all executions of the external
-// gcloud command.
-var GcloudCommonFlags = []string{
-	"--quiet",
+// GcloudCommonEnv is a slice of common environment variables that should be added to the environment of all executions
+// of the external gcloud command.
+var GcloudCommonEnv = []string{
+	"CLOUDSDK_CORE_DISABLE_PROMPTS=TRUE",
 }
 
 // ExecCommand executes an exec.Cmd. If the command exits successfully, its stdout will be returned. If there's an

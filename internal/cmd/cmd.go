@@ -20,6 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"github.com/spf13/cobra"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -52,8 +53,9 @@ func Root(cmd *cobra.Command, args []string) error {
 	log.Println("Getting identity token for gcloud auhtorized account")
 	var identToken string
 
-	a := append(util.GcloudCommonFlags, "auth", "print-identity-token")
-	identToken, err = util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
+	c := exec.Command("gcloud", "auth", "print-identity-token")
+	c.Env = append(os.Environ(), util.GcloudCommonEnv...)
+	identToken, err = util.ExecCommand(c, s.Dir)
 
 	if err != nil {
 		return fmt.Errorf("[cmd.Root] getting identity token for gcloud auhtorized account: %w", err)

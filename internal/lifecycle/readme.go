@@ -27,7 +27,7 @@ import (
 const (
 	// The tag that should appear immediately before code blocks in a README to indicate that the enclosed commands
 	// are to be used by this program for building and deploying the sample.
-	codeTag = "{sst-run-unix}"
+	codeTag = "{sst-run-bash}"
 
 	// A non-quoted backslash in bash at the end of a line indicates a line continuation from the current line to the
 	// next line.
@@ -49,9 +49,9 @@ var (
 // terminal commands inside of a Markdown code block.
 type codeBlock []string
 
-// toCommands extracts the terminal commands contained within the current codeBlock. It handles the expansion of
-// environment variables and line continuations. It also detects Cloud Run service names Google Container Registry
-// container image URLs and replaces them with the ones provided.
+// toCommands extracts the terminal commands contained within the current codeBlock and creates `exec.Cmd`s for them
+// that pass them through the Bash shell. It also detects Cloud Run service names Google Container Registry container
+// image URLs and replaces them with the ones provided.
 func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) {
 	var cmds []*exec.Cmd
 
@@ -79,17 +79,12 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 			line = line + l
 		}
 
-		line = os.ExpandEnv(line)
 		line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
 		line = replaceServiceName(line, serviceName)
-		sp := strings.Split(line, " ")
 
-		var cmd *exec.Cmd
-		if sp[0] == "gcloud" {
-			a := append(util.GcloudCommonFlags, sp[1:]...)
-			cmd = exec.Command("gcloud", a...)
-		} else {
-			cmd = exec.Command(sp[0], sp[1:]...)
+		cmd := exec.Command("bash", "-c", line)
+		if gcloudCommandRegexp.MatchString(line) {
+			cmd.Env = append(os.Environ(), util.GcloudCommonEnv...)
 		}
 
 		cmds = append(cmds, cmd)

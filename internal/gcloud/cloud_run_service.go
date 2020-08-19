@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
+	"os"
 	"os/exec"
 	"strings"
 	"unicode"
@@ -37,8 +38,9 @@ type CloudRunService struct {
 
 // Delete calls the external gcloud SDK and deletes the Cloud Run Service associated with the current cloudRunService.
 func (s CloudRunService) Delete(sampleDir string) error {
-	a := append(util.GcloudCommonFlags, "run", "services", "delete", s.Name, "--platform=managed")
-	_, err := util.ExecCommand(exec.Command("gcloud", a...), sampleDir)
+	c := exec.Command("gcloud", "run", "services", "delete", s.Name, "--platform=managed")
+	c.Env = append(os.Environ(), util.GcloudCommonEnv...)
+	_, err := util.ExecCommand(c, sampleDir)
 
 	if err != nil {
 		return fmt.Errorf("[CloudRunService.delete] deleting Cloud Run Service: %w", err)
@@ -54,9 +56,9 @@ func (s *CloudRunService) URL(sampleDir string) (string, error) {
 		return s.url, nil
 	}
 
-	a := append(util.GcloudCommonFlags, "run", "--platform=managed", "services", "describe", s.Name,
-		"--format=value(status.url)")
-	url, err := util.ExecCommand(exec.Command("gcloud", a...), sampleDir)
+	c := exec.Command("gcloud", "run", "--platform=managed", "services", "describe", s.Name, "--format=value(status.url)")
+	c.Env = append(os.Environ(), util.GcloudCommonEnv...)
+	url, err := util.ExecCommand(c, sampleDir)
 
 	if err != nil {
 		return "", fmt.Errorf("[CloudRunService.URL] getting Cloud Run Service URL: %w", err)

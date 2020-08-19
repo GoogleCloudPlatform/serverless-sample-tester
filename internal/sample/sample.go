@@ -19,6 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/gcloud"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/lifecycle"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
+	"os"
 	"os/exec"
 	"strings"
 	"unicode"
@@ -52,8 +53,9 @@ func NewSample(dir string) (*Sample, error) {
 		return nil, fmt.Errorf("[sample.NewSample] generating Container Registry container image tag: %w", err)
 	}
 
-	a := append(util.GcloudCommonFlags, "config", "get-value", "core/project")
-	projectID, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
+	c := exec.Command("gcloud", "config", "get-value", "core/project")
+	c.Env = append(os.Environ(), util.GcloudCommonEnv...)
+	projectID, err := util.ExecCommand(c, dir)
 
 	if err != nil {
 		return nil, fmt.Errorf("[sample.NewSample] getting gcloud default project: %w", err)
@@ -91,8 +93,9 @@ func sampleName(dir string) string {
 
 // DeleteCloudContainerImage deletes the sample's container image off of the Container Registry.
 func (s *Sample) DeleteCloudContainerImage() error {
-	a := append(util.GcloudCommonFlags, "container", "images", "delete", s.cloudContainerImageURL)
-	_, err := util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
+	c := exec.Command("container", "images", "delete", s.cloudContainerImageURL)
+	c.Env = append(os.Environ(), util.GcloudCommonEnv...)
+	_, err := util.ExecCommand(c, s.Dir)
 
 	if err != nil {
 		return fmt.Errorf("[Sample.DeleteCloudContainerImage] deleting Container Registry container image: %w", err)
