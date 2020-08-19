@@ -82,16 +82,9 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 		line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
 		line = replaceServiceName(line, serviceName)
 
-		var cmd *exec.Cmd
+		cmd := exec.Command("bash", "-c", line)
 		if gcloudCommandRegexp.MatchString(line) {
-			// Splitting command to add util.GcloudCommonFlags to front of command.
-			// TODO: Ideally want to use a library that splits commands according to bash specification.
-			sp := strings.Split(line, " ")
-			c := "gcloud " + strings.Join(append(util.GcloudCommonFlags, sp[1:]...), " ")
-
-			cmd = exec.Command("bash", "-c", c)
-		} else {
-			cmd = exec.Command("bash", "-c", line)
+			cmd.Env = append(os.Environ(), util.GcloudCommonEnv...)
 		}
 
 		cmds = append(cmds, cmd)
