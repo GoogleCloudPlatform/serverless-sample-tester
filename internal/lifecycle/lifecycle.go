@@ -57,10 +57,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 	// First try Cloud Build Config file
 	cloudBuildConfigPath := fmt.Sprintf("%s/cloudbuild.yaml", sampleDir)
 
-	_, err := os.Stat(cloudBuildConfigPath)
-	cloudBuildConfigE := err == nil
-
-	if cloudBuildConfigE {
+	if _, err := os.Stat(cloudBuildConfigPath); err == nil {
 		lifecycle, cleanup, err := getCloudBuildConfigLifecycle(cloudBuildConfigPath, serviceName, gcrURL, runRegion, cloudBuildConfSubs)
 		if err == nil {
 			log.Println("Using cloud build config file")
@@ -103,7 +100,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 	pomPath := filepath.Join(sampleDir, "pom.xml")
 	dockerfilePath := filepath.Join(sampleDir, "Dockerfile")
 
-	_, err = os.Stat(pomPath)
+	_, err := os.Stat(pomPath)
 	pomE := err == nil
 
 	_, err = os.Stat(dockerfilePath)
