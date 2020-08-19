@@ -41,7 +41,7 @@ func (s CloudRunService) Delete(sampleDir string) error {
 	_, err := util.ExecCommand(exec.Command("gcloud", a...), sampleDir)
 
 	if err != nil {
-		return fmt.Errorf("util.ExecCommand deleting Cloud Run Service: %w", err)
+		return fmt.Errorf("deleting Cloud Run Service: %w", err)
 	}
 
 	return nil
@@ -59,7 +59,7 @@ func (s *CloudRunService) URL(sampleDir string) (string, error) {
 	url, err := util.ExecCommand(exec.Command("gcloud", a...), sampleDir)
 
 	if err != nil {
-		return "", fmt.Errorf("util.ExecCommand getting Cloud Run Service URL: %w", err)
+		return "", fmt.Errorf("getting Cloud Run Service URL: %w", err)
 	}
 
 	s.url = url

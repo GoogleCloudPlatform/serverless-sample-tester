@@ -42,7 +42,7 @@ var (
 
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
-	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks no code blocks immediately preceded by %s found", codeTag)
+	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
 )
 
 // codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
@@ -104,14 +104,14 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("os.Open %s: %w", filename, err)
+		return nil, fmt.Errorf("os.Open: %w", err)
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	codeBlocks, err := extractCodeBlocks(scanner)
 	if err != nil {
-		return nil, fmt.Errorf("lifecycle.extractCodeBlocks %s: %w", filename, err)
+		return nil, fmt.Errorf("lifecycle.extractCodeBlocks: %s: %w", filename, err)
 	}
 
 	if len(codeBlocks) == 0 {
@@ -122,7 +122,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	for _, b := range codeBlocks {
 		cmds, err := b.toCommands(serviceName, gcrURL)
 		if err != nil {
-			return l, fmt.Errorf("codeBlock.toCommands code blocks in %s: %w", filename, err)
+			return l, fmt.Errorf("codeBlock.toCommands: code blocks in %s: %w", filename, err)
 		}
 
 		l = append(l, cmds...)

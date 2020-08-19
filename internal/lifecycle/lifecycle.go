@@ -37,7 +37,7 @@ func (l Lifecycle) Execute(commandsDir string) error {
 
 		_, err := util.ExecCommand(c, commandsDir)
 		if err != nil {
-			return fmt.Errorf("util.ExecCommand executing lifecycle command: %w", err)
+			return fmt.Errorf("executing Lifecycle command: %w", err)
 		}
 	}
 
@@ -70,7 +70,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 		}
 
 		if !errors.Is(err, errNoREADMECodeBlocksFound) {
-			return nil, fmt.Errorf("lifecycle.parseREADME %s: %w", readmePath, err)
+			return nil, fmt.Errorf("lifecycle.parseREADME: %s: %w", readmePath, err)
 		}
 
 		log.Println("No code blocks immediately preceded by %s found in README.md\n", codeTag)
