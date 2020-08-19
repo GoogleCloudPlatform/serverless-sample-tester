@@ -80,7 +80,7 @@ func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, func(
 
 	buildDeployLifecycle, cleanup, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL, runRegion, cloudBuildConfSubs)
 	if err != nil {
-		return nil, cleanup, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
+		return nil, nil, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
 	}
 
 	s := &Sample{

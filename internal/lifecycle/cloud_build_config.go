@@ -83,10 +83,12 @@ func getCloudBuildConfigLifecycle(filename, serviceName, gcrURL, runRegion strin
 	}
 
 	if _, err := tempBuildConfigFile.Write(configMarshalBytes); err != nil {
-		return nil, cleanup, fmt.Errorf("[lifecycle.parseCloudBuildConfig] writing to temporary file: %w", err)
+		cleanup()
+		return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] writing to temporary file: %w", err)
 	}
 	if err := tempBuildConfigFile.Close(); err != nil {
-		return nil, cleanup, fmt.Errorf("[lifecycle.parseCloudBuildConfig] closing temporary file: %w", err)
+		cleanup()
+		return nil, nil, fmt.Errorf("[lifecycle.parseCloudBuildConfig] closing temporary file: %w", err)
 	}
 
 	return buildCloudBuildConfigLifecycle(tempBuildConfigFile.Name(), runRegion, substitutions), cleanup, nil
