@@ -34,6 +34,16 @@ Run Serverless Sample Tester by passing in the root directory of the sample you 
 ./sst [target-dir]
 ```
 
+
+## Build and Deploying Your Sample
+This program allows you to specify how you would like it to build and deploy your sample to Cloud Run, fully managed,
+in three ways. From highest to lowest, this program uses the following precedence order to find your build and deploy
+instructions:
+
+1. Cloud Build Config file
+1. README parsing
+1. Defaults
+
 ### Cloud Build Config
 If you'd like, you can specify the build and deploy process for your sample in a [Cloud Build config file](https://cloud.google.com/cloud-build/docs/build-config)
 with the name `cloudbuild.yaml` located in the root directory of your sample. Make sure to deploy to the Cloud Run fully
@@ -100,7 +110,11 @@ gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
 ```
 then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
 
-### Reasonable defaults
-If a `cloudbuild.yaml` file isn't located in your sample's root directory and comment code tags aren't added to your
-README, the program will fall back to reasonable defaults to build and deploy your sample to Cloud Run based on whether
-your sample is java-based and doesn't have a Dockerfile or isn't.
+### Defaults
+If your sample is Java-based and doesn't have a Dockerfile, your sample will be built and pushed the Container Registry
+using `mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=[image_tag]`.
+
+Otherwise, your sample will be build and pushed to the Container Registry using `gcloud builds submit --tag=[image_tag]`.
+
+In both cases, `gcloud run deploy --image=[image_tag] --platform=managed`, will be used to deploy the container image to
+Cloud Run.
