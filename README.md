@@ -29,13 +29,13 @@ gcloud config set run/platform managed
 ```
 
 ## Usage
-Run Serverless Sample Tester:
+Run Serverless Sample Tester by passing in the root directory of the sample you wish to test:
 ```bash
-./sst [sample-dir]
+./sst [target-dir]
 ```
 
 ### README parsing
-To parse build and deploy commands from your README, include the following comment code tag in it:
+To parse build and deploy commands from your sample's README, include the following comment code tag before each gcloud command:
 
 ```text
 [//]: # ({sst-run-unix})
@@ -49,23 +49,24 @@ gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
 ````
 
-The parsed commands will not be run through a shell, meaning that the program will not perform any expansions,
-pipelines, redirections or any other functions that shells are responsible for. This also means that popular shell
-builtin commands like `cd`, `export`, and `echo` will not be available or may not work as expected.  
-
-However, any environment variables referenced in the form of `$var` or `${var}` will expanded. In addition, bash-style
-multiline commands (i.e. non-quoted backslashes at the end of a line that indicate a line continuation) will also be 
-supported. 
-
-Do not set the Cloud Run region you'd like to deploy to through the `--region` flag in the `gcloud run` commands.
-Instead, as mentioned above, do so by setting the `run/region` gcloud property.
+## Configuration and Implementation
 
 ### README location
-If you wish to parse a README file located somewhere other than the root directory, you can include the README's location
-in a `config.yaml` file in the root directory, using the key `readme`. You can specify an absolute directory, or you can simply
+For parsing the README, the tool assumes that it is located in the target directory. If you wish to parse a README file located elsewhere, you can include the README's location
+in a `config.yaml` file in the target directory, using the key `readme`. You can specify an absolute directory, or you can simply
 specify a directory relative to the sample's directory.
 
 For example, if the README is in the parent directory of the sample:
 ```text
 readme: ../README.md
 ```
+
+### Parsing rules
+No parsed commands are run through a shell, meaning that the tool will not perform any typical expansions, pipelines, redirections, or other functions. This also means that popular shell builtin commands like `cd`, `export`, `echo`, and
+others may not work as expected.
+
+However, any environment variables referenced in the form of `$var` or `${var}` will be expanded. In addition, the tool supports
+bash-style multiline commands (non-quoted backslashes at the end of a line that indicate a line continuation).
+
+The Cloud Run region should be set through the `run/region` gcloud property, as described above. Do not set the region through the `--region`
+flag in the `gcloud run` commands; the tool may not work as expected.
