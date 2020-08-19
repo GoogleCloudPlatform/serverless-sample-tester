@@ -54,7 +54,7 @@ func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, func(
 
 	containerTag, err := cloudContainerImageTag(name, dir)
 	if err != nil {
-		return nil, nil, fmt.Errorf("sample.cloudContainerImageTag: %s %s: %w", name, dir, err)
+		return nil, nil, fmt.Errorf("sample.cloudContainerImageTag: sample name: %s, sample dir: %s: %w", name, dir, err)
 	}
 
 	a := append(util.GcloudCommonFlags, "config", "get-value", "core/project")
@@ -74,7 +74,7 @@ func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, func(
 
 	serviceName, err := gcloud.ServiceName(name)
 	if err != nil {
-		return nil, nil, fmt.Errorf("gcloud.ServiceName: %s sample: %w", name, err)
+		return nil, nil, fmt.Errorf("gcloud.ServiceName: sample name: %s: %w", name, err)
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 

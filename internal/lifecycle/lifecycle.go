@@ -64,7 +64,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL, runRegion string, cloudBuildCo
 			return lifecycle, cleanup, nil
 		}
 
-		return nil, nil, fmt.Errorf("[lifecycle.NewLifecycle] using cloud build config file %s: %v\n", cloudBuildConfigPath, err)
+		return nil, nil, fmt.Errorf("lifecycle.getCloudBuildConfigLifecycle: %s: %w\n", cloudBuildConfigPath, err)
 	}
 
 	// Then try README parsing

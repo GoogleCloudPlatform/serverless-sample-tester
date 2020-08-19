@@ -85,7 +85,7 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 		err := replaceServiceName(sp[0], sp[1:], serviceName)
 		if err != nil {
-			return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle] replacing Cloud Run service name in README build and deploy commands: %w", err)
+			return nil, fmt.Errorf("lifecycle.replaceServiceName: %s: %w", line, err)
 		}
 
 		var cmd *exec.Cmd
