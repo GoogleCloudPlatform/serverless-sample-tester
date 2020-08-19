@@ -30,6 +30,7 @@ import (
 func InitConfig(rootCmd *cobra.Command) {
 	viper.SetEnvPrefix("sst")
 
+	viper.SetDefault("cloud_build_subs", map[string]string{})
 	viper.BindEnv("cloud_build_subs")
 	rootCmd.PersistentFlags().StringToString("cloud-build-subs", map[string]string{}, "")
 	viper.BindPFlag("cloud_build_subs", rootCmd.PersistentFlags().Lookup("cloud-build-subs"))
