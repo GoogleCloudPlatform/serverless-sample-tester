@@ -45,12 +45,9 @@ var (
 	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
 )
 
-// codeBlock is a struct holding a slice of strings containing terminal commands found in a Markdown file's code blocks.
-// It also contains the line number of the Markdown file where the code portion of the code block starts.
-type codeBlock struct {
-	lines        []string
-	startLineNum int
-}
+// codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
+// terminal commands inside of a Markdown code block.
+type codeBlock []string
 
 // toCommands extracts the terminal commands contained within the current codeBlock. It handles the expansion of
 // environment variables and line continuations. It also detects Cloud Run service names Google Container Registry
@@ -58,9 +55,8 @@ type codeBlock struct {
 func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) {
 	var cmds []*exec.Cmd
 
-	startLineNum := cb.startLineNum
-	for i := 0; i < len(cb.lines); i++ {
-		line := cb.lines[i]
+	for i := 0; i < len(cb); i++ {
+		line := cb[i]
 		if line == "" {
 			continue
 		}
@@ -71,11 +67,11 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 			line = line[:len(line)-1]
 
 			i++
-			if i >= len(cb.lines) {
-				return nil, fmt.Errorf("line %d: unexpected end of code block; expecting command line continuation", startLineNum+1)
+			if i >= len(cb) {
+				return nil, fmt.Errorf("unexpected end of code block: expecting command line continuation; code block dump:\n%s", strings.Join(cb, "\n"))
 			}
 
-			l := cb.lines[i]
+			l := cb[i]
 			if l == "" {
 				break
 			}
@@ -164,7 +160,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 			c := strings.Count(startCodeBlockLine, "`")
 			mdCodeFenceEndRegexp := regexp.MustCompile(fmt.Sprintf("^\\w*`{%d,}\\w*$", c))
 
-			block := codeBlock{startLineNum: lineNum + 1}
+			var block codeBlock
 			var blockClosed bool
 			for scanner.Scan() {
 				lineNum++
@@ -174,7 +170,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 					break
 				}
 
-				block.lines = append(block.lines, line)
+				block = append(block, line)
 			}
 
 			if err := scanner.Err(); err != nil {
