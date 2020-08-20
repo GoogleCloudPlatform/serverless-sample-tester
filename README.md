@@ -111,10 +111,10 @@ gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
 then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
 
 ### Defaults
-If your sample is Java-based and doesn't have a Dockerfile, your sample will be built and pushed the Container Registry
-using `mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=[image_tag]`.
+If your sample is Java-based (has a `pom.xml` file in its root directory) and has a `Dockerfile` in its root directory,
+your sample will be built and pushed the Container Registry using `mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=[image_tag]`.
 
-Otherwise, your sample will be build and pushed to the Container Registry using `gcloud builds submit --tag=[image_tag]`.
+Otherwise, your sample will be built and pushed to the Container Registry using `gcloud builds submit --tag=[image_tag]`.
 
 In both cases, `gcloud run deploy --image=[image_tag] --platform=managed`, will be used to deploy the container image to
 Cloud Run.
