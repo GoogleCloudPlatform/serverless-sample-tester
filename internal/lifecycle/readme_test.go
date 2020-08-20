@@ -23,7 +23,7 @@ func setEnv(e map[string]string) error {
 // unsetEnv takes a map of environment variables to their values and unsets the environment variables in the program's
 // environment.
 func unsetEnv(e map[string]string) error {
-	for k, _ := range e {
+	for k := range e {
 		if err := os.Unsetenv(k); err != nil {
 			return err
 		}
@@ -32,7 +32,8 @@ func unsetEnv(e map[string]string) error {
 }
 
 type test struct {
-	in                   string            // inupt markdown string
+	inFileName           string            // input Markdown file
+	inStr                string            // inupt markdown string
 	codeBlocks           []codeBlock       // expected result of extractCodeBlocks on in
 	cmds                 []*exec.Cmd       // expected result of toCommands on all codeBlocks and extractLifecycle on in
 	toCommandsErr        error             // expected toCommands return error
@@ -46,7 +47,7 @@ type test struct {
 var tests = []test{
 	// single code block, single one-line command
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n" +
 			"```\n",
@@ -62,7 +63,7 @@ var tests = []test{
 
 	// code block not closed
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n",
 		codeBlocks:           nil,
@@ -73,7 +74,7 @@ var tests = []test{
 
 	// code block doesn't start immediately after code tag
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"not start of code block\n" +
 			"```\n" +
 			"echo hello world\n" +
@@ -86,7 +87,7 @@ var tests = []test{
 
 	// EOF immediately after code tag
 	{
-		in: "instuctions\n" +
+		inStr: "instuctions\n" +
 			"[//]: # ({sst-run-unix})\n",
 		codeBlocks:           nil,
 		cmds:                 nil,
@@ -96,7 +97,7 @@ var tests = []test{
 
 	// single code block, two one-line commands
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo line one\n" +
 			"echo line two\n" +
@@ -115,7 +116,7 @@ var tests = []test{
 
 	// single code block, single multiline command
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo multi \\\n" +
 			"line command\n" +
@@ -133,7 +134,7 @@ var tests = []test{
 
 	// line cont char but code block closes at next line
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo multi \\\n" +
 			"```\n",
@@ -149,7 +150,7 @@ var tests = []test{
 
 	// two code blocks, one single-line command in each, with markdown instructions in the middle
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build command\n" +
 			"```\n" +
@@ -174,7 +175,7 @@ var tests = []test{
 
 	// two code blocks, but only one is annotated with code tag
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build and deploy command\n" +
 			"```\n" +
@@ -194,7 +195,7 @@ var tests = []test{
 
 	// one code block, but not annotated with code tag
 	{
-		in: "```\n" +
+		inStr: "```\n" +
 			"echo hello world\n" +
 			"```\n",
 		codeBlocks:          nil,
@@ -204,7 +205,7 @@ var tests = []test{
 
 	// expand environment variable test
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo ${TEST_ENV}\n" +
 			"```\n",
@@ -223,7 +224,7 @@ var tests = []test{
 
 	// replace Cloud Run service name with provided name
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud run services deploy hello_world\n" +
 			"```\n",
@@ -240,7 +241,7 @@ var tests = []test{
 
 	// replace Container Registry URL with provided URL
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud builds submit --tag=gcr.io/hello/world\n" +
 			"```\n",
@@ -257,7 +258,7 @@ var tests = []test{
 
 	// replace multiline GCR URL with provided URL
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud builds submit --tag=gcr.io/hello/\\\n" +
 			"world\n" +
@@ -276,7 +277,7 @@ var tests = []test{
 
 	// replace Cloud Run service name and GCR URL with provided inputs
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud run services deploy hello_world --image=gcr.io/hello/world\n" +
 			"```\n",
@@ -295,7 +296,7 @@ var tests = []test{
 	// replace Cloud Run service name and GCR URL with `--image url` syntax
 	// this test breaks right now (issue #3)
 	//{
-	//	in: "[//]: # ({sst-run-unix})\n" +
+	//	inStr: "[//]: # ({sst-run-unix})\n" +
 	//		"```\n" +
 	//		"gcloud run services deploy hello_world --image gcr.io/hello/world\n" +
 	//		"```\n",
@@ -313,7 +314,7 @@ var tests = []test{
 
 	// replace Cloud Run service name and GCR URL with provided inputs and expand environment variables
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud run services deploy hello_world --image=gcr.io/hello/world --add-cloudsql-instances=${TEST_CLOUD_SQL_CONNECTION}\n" +
 			"```\n",
@@ -334,7 +335,7 @@ var tests = []test{
 
 	// replace Cloud Run service name provided name in command with multiline arguments
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud run services update hello_world --add-cloudsql-instances=\\\n" +
 			"project:region:instance\n" +
@@ -354,7 +355,7 @@ var tests = []test{
 
 	// replace Cloud Run service name provided name and expand environment variables in command with multiline arguments
 	{
-		in: "[//]: # ({sst-run-unix})\n" +
+		inStr: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"gcloud run services update hello_world --add-cloudsql-instances=\\\n" +
 			"${TEST_CLOUD_SQL_CONNECTION}\n" +
@@ -374,10 +375,33 @@ var tests = []test{
 		serviceName: "unique_service_name",
 		gcrURL:      "gcr.io/unique/tag",
 	},
+
+	// markdown file input to codeBlocks test
+	{
+		inFileName: "readme_test.md",
+		codeBlocks: []codeBlock{
+			[]string{
+				"echo hello world",
+			},
+			[]string{
+				"echo line one",
+				"echo line two",
+			},
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("echo", "hello", "world"),
+			exec.Command("echo", "line", "one"),
+			exec.Command("echo", "line", "two"),
+		},
+	},
 }
 
 func TestToCommands(t *testing.T) {
 	for i, tc := range tests {
+		if len(tc.codeBlocks) == 0 {
+			continue
+		}
+
 		if err := setEnv(tc.env); err != nil {
 			t.Errorf("#%d: setEnv: %v", i, err)
 
@@ -412,6 +436,10 @@ func TestToCommands(t *testing.T) {
 
 func TestExtractLifecycle(t *testing.T) {
 	for i, tc := range tests {
+		if tc.inStr == "" {
+			continue
+		}
+
 		if err := setEnv(tc.env); err != nil {
 			t.Errorf("#%d: setEnv: %v", i, err)
 
@@ -422,7 +450,7 @@ func TestExtractLifecycle(t *testing.T) {
 			continue
 		}
 
-		s := bufio.NewScanner(strings.NewReader(tc.in))
+		s := bufio.NewScanner(strings.NewReader(tc.inStr))
 		var cmds []*exec.Cmd
 		cmds, err := extractLifecycle(s, tc.serviceName, tc.gcrURL)
 
@@ -441,10 +469,40 @@ func TestExtractLifecycle(t *testing.T) {
 	}
 }
 
-func TestExtractCodeBlocks(t *testing.T) {
+func TestExtractCodeBlocksStr(t *testing.T) {
 	for i, tc := range tests {
-		s := bufio.NewScanner(strings.NewReader(tc.in))
+		if tc.inStr == "" {
+			continue
+		}
 
+		s := bufio.NewScanner(strings.NewReader(tc.inStr))
+
+		codeBlocks, err := extractCodeBlocks(s)
+		if !errors.Is(err, tc.extractCodeBlocksErr) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractCodeBlocksErr, err)
+			continue
+		}
+
+		if !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.codeBlocks, codeBlocks)
+			continue
+		}
+	}
+}
+
+func TestExtractCodeBlocksFile(t *testing.T) {
+	for i, tc := range tests {
+		if tc.inFileName == "" {
+			continue
+		}
+
+		file, err := os.Open(tc.inFileName)
+		if err != nil {
+			t.Errorf("#%d: os.Open: %v", i, err)
+		}
+		defer file.Close()
+
+		s := bufio.NewScanner(file)
 		codeBlocks, err := extractCodeBlocks(s)
 		if !errors.Is(err, tc.extractCodeBlocksErr) {
 			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractCodeBlocksErr, err)
