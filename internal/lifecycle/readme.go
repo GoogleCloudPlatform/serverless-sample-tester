@@ -145,7 +145,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 		if strings.Contains(line, codeTag) {
 			if s := scanner.Scan(); !s {
 				if err := scanner.Err(); err != nil {
-					return nil, fmt.Errorf("bufio.Scanner.Scan: %w", err)
+					return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 				}
 				return nil, fmt.Errorf("unexpected EOF: file ended immediately after code tag")
 			}
@@ -174,7 +174,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 			}
 
 			if err := scanner.Err(); err != nil {
-				return nil, fmt.Errorf("bufio.Scanner.Scan: %w", err)
+				return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 			}
 
 			if !blockClosed {
@@ -186,7 +186,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("bufio.Scanner.Scan: %w", err)
+		return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 	}
 
 	return blocks, nil
