@@ -65,3 +65,13 @@ to your `gcloud run` commands.
 
 If comment code tags aren't added to your README, the program will fall back to reasonable defaults to build and deploy
 your sample to Cloud Run based on whether your sample is java-based and doesn't have a Dockerfile or isn't.
+
+To accurately splice out the default Cloud Run service name that is used in the README, include this service name
+as the environment variable `$CLOUD_RUN_SERVICE_NAME`. If this is not provided, the tool will attempt to parse
+what the name is, but it may not always be accurate. 
+
+For example, if your README contains the command 
+```
+gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
+```
+then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
