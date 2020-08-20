@@ -37,6 +37,7 @@ type test struct {
 	codeBlocks           []codeBlock       // expected result of extractCodeBlocks on in
 	cmds                 []*exec.Cmd       // expected result of toCommands on all codeBlocks and extractLifecycle on in
 	toCommandsErr        error             // expected toCommands return error
+	parseREADMEErr       error             // expected parseREADMEErr return error
 	extractLifecycleErr  error             // expected extractLifecycle return error
 	extractCodeBlocksErr error             // expected extractCodeBlocks return error
 	env                  map[string]string // map of environment variables to values for this test
@@ -379,15 +380,6 @@ var tests = []test{
 	// markdown file input to codeBlocks test
 	{
 		inFileName: "readme_test.md",
-		codeBlocks: []codeBlock{
-			[]string{
-				"echo hello world",
-			},
-			[]string{
-				"echo line one",
-				"echo line two",
-			},
-		},
 		cmds: []*exec.Cmd{
 			exec.Command("echo", "hello", "world"),
 			exec.Command("echo", "line", "one"),
@@ -490,27 +482,22 @@ func TestExtractCodeBlocksStr(t *testing.T) {
 	}
 }
 
-func TestExtractCodeBlocksFile(t *testing.T) {
+func TestParseREADME(t *testing.T) {
 	for i, tc := range tests {
 		if tc.inFileName == "" {
 			continue
 		}
 
-		file, err := os.Open(tc.inFileName)
-		if err != nil {
-			t.Errorf("#%d: os.Open: %v", i, err)
-		}
-		defer file.Close()
+		var cmds []*exec.Cmd
+		cmds, err := parseREADME(tc.inFileName, tc.serviceName, tc.gcrURL)
 
-		s := bufio.NewScanner(file)
-		codeBlocks, err := extractCodeBlocks(s)
-		if !errors.Is(err, tc.extractCodeBlocksErr) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractCodeBlocksErr, err)
+		if !errors.Is(err, tc.parseREADMEErr) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.parseREADMEErr, err)
 			continue
 		}
 
-		if !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.codeBlocks, codeBlocks)
+		if !reflect.DeepEqual(cmds, tc.cmds) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
 			continue
 		}
 	}
