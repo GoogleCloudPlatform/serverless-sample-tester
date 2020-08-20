@@ -96,7 +96,7 @@ your sample to Cloud Run based on whether your sample is Java-based (has a pom.x
 If your sample is Java-based, your sample will be built and pushed to the Container Registry using
 `mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=[image_tag]`.
 
-Otherwise, your sample will be build and pushed to the Container Registry using
+Otherwise, your sample will be built and pushed to the Container Registry using
 `gcloud builds submit --tag=[image_tag]`.
 
 In both cases, `gcloud run deploy --image=[image_tag] --platform=managed`, will be used to deploy the container image to
