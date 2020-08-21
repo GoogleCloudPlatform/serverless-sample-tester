@@ -1,36 +1,41 @@
 # Serverless Sample Tester
 
-This is an end-to-end framework that deploys Google Cloud Platform samples to
-Cloud Run and ensures that they perform as expected when deployed.
+This tool streamlines the process of testing Google Cloud Platform samples. It is intended to 
+identify bugs that arise in the deployment process, and does not cover unit testing. Currently
+the tool only supports Cloud Run.
 
-This project’s primary intended users are developers looking to test GCP
-samples. In order to streamline the development workflow, this project is
-focused on being an end-to-end testing framework that specifically targets
-identifying bugs that arise when samples are deployed to Cloud Run. It will:
+Serverless Sample Tester does the following steps:
 
-1. Deploy samples to Cloud Run
-1. Check deployed service for expected responses
-1. Return logs of health check service’s logs if any tests failed
-1. Clean up any created resources as part of previous processes
+1. Deploys the sample to Cloud Run
+1. Checks the deployed service for expected responses
+1. Returns a log if any tests failed
+1. Cleans up created resources
 
-## Build
-
+## Getting Started
+Build Serverless Sample Tester:
 ```bash
 go build -o sst cmd/main.go
 ```
 
-## Usage
-
+Authenticate gcloud with your user account:
 ```bash
-./sst [sample-dir]
+gcloud auth login
 ```
 
-Make sure to authorize the gcloud SDK and set a default project and Cloud Run region before running this program. A
-default Cloud Run region can be set by setting the `run/region` gcloud property.
+Consider setting defaults for Cloud Run operations, such as setting the region:
+```bash
+gcloud config set run/region us-central1
+gcloud config set run/platform managed
+```
+
+## Usage
+Run Serverless Sample Tester by passing in the root directory of the sample you wish to test:
+```bash
+./sst [target-dir]
+```
 
 ### README parsing
-If you'd like, make sure to include the following comment code tag in your README to customize how the program should
-build and deploy your sample:
+To parse build and deploy commands from your sample's README, include the following comment code tag before each gcloud command:
 
 ```text
 [//]: # ({sst-run-unix})
@@ -44,24 +49,24 @@ gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
 ````
 
-When parsing the README for custom build and deploy commands, the serverless sample tester will include any commands
-inside a code fence that is immediately preceded by a line containing `{sst-run-unix}`. You can use Markdown syntax
-(e.g. `[//]: # ({sst-run-unix})`) to include this line without making it visible when rendered.
+## Configuration and Implementation
 
-The parsed commands will not be run through a shell, meaning that the program will not perform any expansions,
-pipelines, redirections or any other functions that shells are responsible for. This also means that popular shell
-builtin commands like `cd`, `export`, and `echo` will not be available or may not work as expected.  
+### README location
+For parsing the README, the tool assumes that it is located in the target directory. If you wish to parse a README file located elsewhere, you can include the README's location
+in a `config.yaml` file in the target directory, using the key `readme`. You can specify an absolute directory, or you can simply
+specify a directory relative to the sample's directory.
 
-However, any environment variables referenced in the form of `$var` or `${var}` will expanded. In addition, bash-style
-multiline commands (i.e. non-quoted backslashes at the end of a line that indicate a line continuation) will also be 
-supported. 
+For example, if the README is in the parent directory of the sample:
+```text
+readme: ../README.md
+```
 
-Do not set the Cloud Run region you'd like to deploy to through the `--region` flag in the `gcloud run` commands.
-Instead, as mentioned above, do so by setting the `run/region` gcloud property.
+### Parsing rules
+No parsed commands are run through a shell, meaning that the tool will not perform any typical expansions, pipelines, redirections, or other functions. This also means that popular shell builtin commands like `cd`, `export`, `echo`, and
+others may not work as expected.
 
-In addition to setting a default Cloud Run region, make sure to deploy to the fully managed platform on Cloud Run. You
-can achieve this by setting the `run/platform` gcloud property to `managed` or passing in the `--platform=managed` flag
-to your `gcloud run` commands.
+However, any environment variables referenced in the form of `$var` or `${var}` will be expanded. In addition, the tool supports
+bash-style multiline commands (non-quoted backslashes at the end of a line that indicate a line continuation).
 
-If comment code tags aren't added to your README, the program will fall back to reasonable defaults to build and deploy
-your sample to Cloud Run based on whether your sample is java-based and doesn't have a Dockerfile or isn't.
+The Cloud Run region should be set through the `run/region` gcloud property, as described above. Do not set the region through the `--region`
+flag in the `gcloud run` commands; the tool may not work as expected.
