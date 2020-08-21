@@ -42,7 +42,7 @@ var (
 
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
-	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
+	errNoReadmeCodeBlocksFound   = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
 	errCodeBlockNotClosed        = fmt.Errorf("unexpected EOF: code block not closed")
 	errCodeBlockStartNotFound    = fmt.Errorf("expecting start of code block immediately after code tag")
 	errEOFAfterCodeTag           = fmt.Errorf("unexpected EOF: file ended immediately after code tag")
@@ -72,7 +72,7 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 			i++
 			if i >= len(cb) {
-				return nil, fmt.Errorf("%w; code block dump:\n%s",  errCodeBlockEndAfterLineCont, strings.Join(cb, "\n"))
+				return nil, fmt.Errorf("%w; code block dump:\n%s", errCodeBlockEndAfterLineCont, strings.Join(cb, "\n"))
 			}
 
 			l := cb[i]
@@ -102,11 +102,11 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 	return cmds, nil
 }
 
-// parseREADME parses a README file with the given name. It parses terminal commands in code blocks annotated by the
+// parseReadme parses a README file with the given name. It parses terminal commands in code blocks annotated by the
 // codeTag and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
 // Registry tag with the provided inputs. It also expands environment variables and supports bash-style line
 // continuations.
-func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
+func parseReadme(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("os.Open: %w", err)
@@ -118,7 +118,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	return extractLifecycle(scanner, serviceName, gcrURL)
 }
 
-// extractLifecycle is a helper function for parseREADME. It takes a scanner that reads from a Markdown file and parses
+// extractLifecycle is a helper function for parseReadme. It takes a scanner that reads from a Markdown file and parses
 // terminal commands in code blocks annotated by the codeTag and loads them into a Lifecycle. In the process, it
 // replaces the Cloud Run service name and Container Registry tag with the provided inputs. It also expands environment
 // variables and supports bash-style line continuations.
@@ -129,7 +129,7 @@ func extractLifecycle(scanner *bufio.Scanner, serviceName, gcrURL string) (Lifec
 	}
 
 	if len(codeBlocks) == 0 {
-		return nil, errNoREADMECodeBlocksFound
+		return nil, errNoReadmeCodeBlocksFound
 	}
 
 	var l Lifecycle
@@ -218,7 +218,7 @@ func replaceServiceName(command, serviceName string) string {
 	sp := strings.Split(command, " ")
 
 	// Detects if the user specified the Cloud Run service name in an environment variable
-	for i := 0;  i < len(sp); i++ {
+	for i := 0; i < len(sp); i++ {
 		if sp[i] == os.ExpandEnv("$CLOUD_RUN_SERVICE_NAME") {
 			sp[i] = serviceName
 			return strings.Join(sp, " ")
@@ -226,7 +226,7 @@ func replaceServiceName(command, serviceName string) string {
 	}
 
 	// Searches for specific gcloud keywords and takes service name from them
-	for i := 0; i < len(sp) - 1; i++ {
+	for i := 0; i < len(sp)-1; i++ {
 		if sp[i] == "deploy" || sp[i] == "update" {
 			sp[i+1] = serviceName
 			return strings.Join(sp, " ")

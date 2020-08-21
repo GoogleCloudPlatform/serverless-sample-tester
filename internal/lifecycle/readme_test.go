@@ -193,6 +193,10 @@ var toCommandsTests = []toCommandsTest{
 
 func TestToCommands(t *testing.T) {
 	for i, tc := range toCommandsTests {
+		if len(tc.codeBlock) == 0 {
+			continue
+		}
+
 		if err := setEnv(tc.env); err != nil {
 			t.Errorf("#%d: setEnv: %v", i, err)
 
@@ -204,13 +208,13 @@ func TestToCommands(t *testing.T) {
 		}
 
 		cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
+		errorMatch := errors.Is(err, tc.err)
 
-		if !errors.Is(err, tc.err) {
+		if !errorMatch {
 			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
 		}
 
-		if err == nil && !reflect.DeepEqual(cmds, tc.cmds) {
+		if (errorMatch && err == nil) && !reflect.DeepEqual(cmds, tc.cmds) {
 			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
 		}
 
@@ -220,13 +224,13 @@ func TestToCommands(t *testing.T) {
 	}
 }
 
-type parseREADMETest struct {
+type parseReadmeTest struct {
 	inFileName string    // input Markdown file
-	lifecycle  Lifecycle // expected result of parseREADME
-	err        error     // expected parseREADME return error
+	lifecycle  Lifecycle // expected result of parseReadme
+	err        error     // expected parseReadme return error
 }
 
-var parseREADMETests = []parseREADMETest{
+var parseReadmeTests = []parseReadmeTest{
 	// three code blocks, only two with comment code tags. one with one command, the other with two commands
 	{
 		inFileName: "readme_test.md",
@@ -238,14 +242,14 @@ var parseREADMETests = []parseREADMETest{
 	},
 }
 
-func TestParseREADME(t *testing.T) {
-	for i, tc := range parseREADMETests {
+func TestParseReadme(t *testing.T) {
+	for i, tc := range parseReadmeTests {
 		if tc.inFileName == "" {
 			continue
 		}
 
 		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
-		lifecycle, err := parseREADME(tc.inFileName, "", "")
+		lifecycle, err := parseReadme(tc.inFileName, "", "")
 
 		if !errors.Is(err, tc.err) {
 			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
