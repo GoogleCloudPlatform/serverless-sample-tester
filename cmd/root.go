@@ -90,19 +90,5 @@ func Execute() error {
 
 // init initializes the tool.
 func init() {
-	cobra.OnInitialize(initConfig)
-}
-
-func initConfig() {
-	// Support for tool config file. Waiting until config functionality is added to 
-	// use this function, as it deals with configuration handled in other PRs.
-	//
-	// viper.AddConfigPath(home)
-	// viper.SetConfigName("config.yaml")
-	// 
-	// viper.AutomaticEnv()
-	//
-	// if err := viper.ReadInConfig(); err == nil {
-	// 	log.Println("Using config file: ", viper.ConfigFileUsed())
-	// }
+	// Initialization goes here
 }

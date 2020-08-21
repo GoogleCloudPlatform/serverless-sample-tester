@@ -15,7 +15,7 @@
 package main
 
 import (
-	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/cmd"
+	"github.com/GoogleCloudPlatform/serverless-sample-tester/cmd"
 )
 
 func main() {
