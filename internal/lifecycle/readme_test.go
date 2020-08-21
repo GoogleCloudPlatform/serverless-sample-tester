@@ -31,24 +31,302 @@ func unsetEnv(e map[string]string) error {
 	return nil
 }
 
-type test struct {
-	inFileName           string            // input Markdown file
-	inStr                string            // inupt markdown string
-	codeBlocks           []codeBlock       // expected result of extractCodeBlocks on in
-	cmds                 []*exec.Cmd       // expected result of toCommands on all codeBlocks and extractLifecycle on in
-	toCommandsErr        error             // expected toCommands return error
-	parseREADMEErr       error             // expected parseREADMEErr return error
-	extractLifecycleErr  error             // expected extractLifecycle return error
-	extractCodeBlocksErr error             // expected extractCodeBlocks return error
-	env                  map[string]string // map of environment variables to values for this test
-	serviceName          string            // Cloud Run service name that should replace existing names
-	gcrURL               string            // Container Registry URL that should replace existing URLs
+// uniqueServiceName is the Cloud Run Service name that will replace the existing service names in each codeBlock test.
+const uniqueServiceName = "unique_service_name"
+
+// uniqueGCRURL is the Container Registry URL tag that will replace the existing Container Registry URL tag in each codeBlock test.
+const uniqueGCRURL = "gcr.io/unique/tag"
+
+type toCommandsTest struct {
+	codeBlock codeBlock         // input code block
+	cmds      []*exec.Cmd       // expected result of codeBlock.toCommands
+	err       error             // expected return error of codeBlock.toCommands
+	env       map[string]string // map of environment variables to values for this test
 }
 
-var tests = []test{
-	// single code block, single one-line command
+var toCommandsTests = []toCommandsTest{
+	// single one-line command
 	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
+		codeBlock: codeBlock{
+			"echo hello world",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("echo", "hello", "world"),
+		},
+	},
+
+	// two one-line commands
+	{
+		codeBlock: codeBlock{
+			"echo line one",
+			"echo line two",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("echo", "line", "one"),
+			exec.Command("echo", "line", "two"),
+		},
+	},
+
+	// single multiline command
+	{
+		codeBlock: codeBlock{
+			"echo multi \\",
+			"line command",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("echo", "multi", "line", "command"),
+		},
+	},
+
+	// line cont char but code block closes at next line
+	{
+		codeBlock: codeBlock{
+			"echo multi \\",
+		},
+		cmds: nil,
+		err:  errCodeBlockEndAfterLineCont,
+	},
+
+	// expand environment variable test
+	{
+		codeBlock: codeBlock{
+			"echo ${TEST_ENV}",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("echo", "hello", "world"),
+		},
+		env: map[string]string{
+			"TEST_ENV": "hello world",
+		},
+	},
+
+	// replace Cloud Run service name with provided name test
+	{
+		codeBlock: codeBlock{
+			"gcloud run services deploy hello_world",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName),
+		},
+	},
+
+	// replace Container Registry URL with provided URL test
+	{
+		codeBlock: codeBlock{
+			"gcloud builds submit --tag=gcr.io/hello/world",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "builds", "submit", "--tag="+uniqueGCRURL),
+		},
+	},
+
+	// replace multiline GCR URL with provided URL test
+	{
+		codeBlock: codeBlock{
+			"gcloud builds submit --tag=gcr.io/hello/\\",
+			"world",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "builds", "submit", "--tag="+uniqueGCRURL),
+		},
+	},
+
+	// replace Cloud Run service name and GCR URL with provided inputs test
+	{
+		codeBlock: codeBlock{
+			"gcloud run services deploy hello_world --image=gcr.io/hello/world",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName, "--image="+uniqueGCRURL),
+		},
+	},
+
+	// replace Cloud Run service name and GCR URL with `--image url` syntax test
+	// this test breaks right now (issue #3)
+	//{
+	//	codeBlock: codeBlock{
+	//		"gcloud run services deploy hello_world --image gcr.io/hello/world",
+	//	},
+	//	cmds: []*exec.Cmd{
+	//		exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName, "--image", uniqueGCRURL),
+	//	},
+	//	serviceName: "unique_service_name",
+	//	gcrURL: "gcr.io/unique/tag",
+	//},
+	{
+		codeBlock: codeBlock{
+			"gcloud run services deploy hello_world --image=gcr.io/hello/world --add-cloudsql-instances=${TEST_CLOUD_SQL_CONNECTION}",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName, "--image="+uniqueGCRURL, "--add-cloudsql-instances=project:region:instance"),
+		},
+		env: map[string]string{
+			"TEST_CLOUD_SQL_CONNECTION": "project:region:instance",
+		},
+	},
+
+	// replace Cloud Run service name provided name in command with multiline arguments test
+	{
+		codeBlock: codeBlock{
+			"gcloud run services update hello_world --add-cloudsql-instances=\\",
+			"project:region:instance",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "run", "services", "update", uniqueServiceName, "--add-cloudsql-instances=project:region:instance"),
+		},
+	},
+
+	// replace Cloud Run service name provided name and expand environment variables in command with multiline arguments test
+	{
+		codeBlock: codeBlock{
+			"gcloud run services update hello_world --add-cloudsql-instances=\\",
+			"${TEST_CLOUD_SQL_CONNECTION}",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "run", "services", "update", uniqueServiceName, "--add-cloudsql-instances=project:region:instance"),
+		},
+		env: map[string]string{
+			"TEST_CLOUD_SQL_CONNECTION": "project:region:instance",
+		},
+	},
+}
+
+func TestToCommands(t *testing.T) {
+	for i, tc := range toCommandsTests {
+		if err := setEnv(tc.env); err != nil {
+			t.Errorf("#%d: setEnv: %v", i, err)
+
+			if err = unsetEnv(tc.env); err != nil {
+				t.Errorf("#%d: unsetEnv: %v", i, err)
+			}
+
+			continue
+		}
+
+		cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
+
+		if !errors.Is(err, tc.err) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
+			continue
+		}
+
+		if err == nil && !reflect.DeepEqual(cmds, tc.cmds) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
+		}
+
+		if err := unsetEnv(tc.env); err != nil {
+			t.Errorf("#%d: unsetEnv: %v", i, err)
+		}
+	}
+}
+
+type parseREADMETest struct {
+	inFileName string    // input Markdown file
+	lifecycle  Lifecycle // expected result of parseREADME
+	err        error     // expected parseREADME return error
+}
+
+var parseREADMETests = []parseREADMETest{
+	// three code blocks, only two with comment code tags. one with one command, the other with two commands
+	{
+		inFileName: "readme_test.md",
+		lifecycle: Lifecycle{
+			exec.Command("echo", "hello", "world"),
+			exec.Command("echo", "line", "one"),
+			exec.Command("echo", "line", "two"),
+		},
+	},
+}
+
+func TestParseREADME(t *testing.T) {
+	for i, tc := range parseREADMETests {
+		if tc.inFileName == "" {
+			continue
+		}
+
+		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
+		lifecycle, err := parseREADME(tc.inFileName, "", "")
+
+		if !errors.Is(err, tc.err) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
+			continue
+		}
+
+		if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.lifecycle, lifecycle)
+			continue
+		}
+	}
+}
+
+type extractLifecycleTest struct {
+	in        string    // input Markdown string
+	lifecycle Lifecycle // expected results of extractLifecycle on in
+	err       error     // expected error
+}
+
+var extractLifecycleTests = []extractLifecycleTest{
+	// single code block
+	{
+		in: "[//]: # ({sst-run-unix})\n" +
+			"```\n" +
+			"echo hello world\n" +
+			"```\n",
+		lifecycle: Lifecycle{
+			exec.Command("echo", "hello", "world"),
+		},
+	},
+
+	// two code blocks with markdown text in the middle
+	{
+		in: "[//]: # ({sst-run-unix})\n" +
+			"```\n" +
+			"echo build command\n" +
+			"```\n" +
+			"markdown instructions\n" +
+			"[//]: # ({sst-run-unix})\n" +
+			"```\n" +
+			"echo deploy command\n" +
+			"```\n",
+		lifecycle: Lifecycle{
+			exec.Command("echo", "build", "command"),
+			exec.Command("echo", "deploy", "command"),
+		},
+	},
+}
+
+func TestExtractLifecycle(t *testing.T) {
+	for i, tc := range extractLifecycleTests {
+		if tc.in == "" {
+			continue
+		}
+
+		s := bufio.NewScanner(strings.NewReader(tc.in))
+
+		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
+		lifecycle, err := extractLifecycle(s, "", "")
+
+		if !errors.Is(err, tc.err) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
+			continue
+		}
+
+		if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
+			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.lifecycle, lifecycle)
+		}
+	}
+}
+
+type extractCodeBlocksTest struct {
+	in         string      // input Markdown string
+	codeBlocks []codeBlock // expected result of extractCodeBlocks
+	err        error       // expected return error of extractCodeBlocks
+}
+
+var extractCodeBlocksTests = []extractCodeBlocksTest{
+	// single code block
+	{
+		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n" +
 			"```\n",
@@ -57,48 +335,39 @@ var tests = []test{
 				"echo hello world",
 			},
 		},
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "hello", "world"),
-		},
 	},
 
 	// code block not closed
 	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
+		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n",
-		codeBlocks:           nil,
-		cmds:                 nil,
-		extractLifecycleErr:  errCodeBlockNotClosed,
-		extractCodeBlocksErr: errCodeBlockNotClosed,
+		codeBlocks: nil,
+		err:        errCodeBlockNotClosed,
 	},
 
 	// code block doesn't start immediately after code tag
 	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
+		in: "[//]: # ({sst-run-unix})\n" +
 			"not start of code block\n" +
 			"```\n" +
 			"echo hello world\n" +
 			"```\n",
-		codeBlocks:           nil,
-		cmds:                 nil,
-		extractLifecycleErr:  errCodeBlockStartNotFound,
-		extractCodeBlocksErr: errCodeBlockStartNotFound,
+		codeBlocks: nil,
+		err:        errCodeBlockStartNotFound,
 	},
 
 	// EOF immediately after code tag
 	{
-		inStr: "instuctions\n" +
+		in: "instuctions\n" +
 			"[//]: # ({sst-run-unix})\n",
-		codeBlocks:           nil,
-		cmds:                 nil,
-		extractLifecycleErr:  errEOFAfterCodeTag,
-		extractCodeBlocksErr: errEOFAfterCodeTag,
+		codeBlocks: nil,
+		err:        errEOFAfterCodeTag,
 	},
 
-	// single code block, two one-line commands
+	// single code block, two lines
 	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
+		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo line one\n" +
 			"echo line two\n" +
@@ -109,49 +378,11 @@ var tests = []test{
 				"echo line two",
 			},
 		},
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "line", "one"),
-			exec.Command("echo", "line", "two"),
-		},
 	},
 
-	// single code block, single multiline command
+	// two code blocks with markdown instructions in the middle
 	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"echo multi \\\n" +
-			"line command\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"echo multi \\",
-				"line command",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "multi", "line", "command"),
-		},
-	},
-
-	// line cont char but code block closes at next line
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"echo multi \\\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"echo multi \\",
-			},
-		},
-		cmds:                nil,
-		toCommandsErr:       errCodeBlockEndAfterLineCont,
-		extractLifecycleErr: errCodeBlockEndAfterLineCont,
-	},
-
-	// two code blocks, one single-line command in each, with markdown instructions in the middle
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
+		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build command\n" +
 			"```\n" +
@@ -168,15 +399,11 @@ var tests = []test{
 				"echo deploy command",
 			},
 		},
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "build", "command"),
-			exec.Command("echo", "deploy", "command"),
-		},
 	},
 
 	// two code blocks, but only one is annotated with code tag
 	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
+		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build and deploy command\n" +
 			"```\n" +
@@ -189,316 +416,33 @@ var tests = []test{
 				"echo build and deploy command",
 			},
 		},
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "build", "and", "deploy", "command"),
-		},
 	},
 
 	// one code block, but not annotated with code tag
 	{
-		inStr: "```\n" +
+		in: "```\n" +
 			"echo hello world\n" +
 			"```\n",
-		codeBlocks:          nil,
-		cmds:                nil,
-		extractLifecycleErr: errNoREADMECodeBlocksFound,
-	},
-
-	// expand environment variable test
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"echo ${TEST_ENV}\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"echo ${TEST_ENV}",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "hello", "world"),
-		},
-		env: map[string]string{
-			"TEST_ENV": "hello world",
-		},
-	},
-
-	// replace Cloud Run service name with provided name
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud run services deploy hello_world\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud run services deploy hello_world",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "run", "services", "deploy", "unique_service_name"),
-		},
-		serviceName: "unique_service_name",
-	},
-
-	// replace Container Registry URL with provided URL
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud builds submit --tag=gcr.io/hello/world\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud builds submit --tag=gcr.io/hello/world",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "builds", "submit", "--tag=gcr.io/unique/tag"),
-		},
-		gcrURL: "gcr.io/unique/tag",
-	},
-
-	// replace multiline GCR URL with provided URL
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud builds submit --tag=gcr.io/hello/\\\n" +
-			"world\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud builds submit --tag=gcr.io/hello/\\",
-				"world",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "builds", "submit", "--tag=gcr.io/unique/tag"),
-		},
-		gcrURL: "gcr.io/unique/tag",
-	},
-
-	// replace Cloud Run service name and GCR URL with provided inputs
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud run services deploy hello_world --image=gcr.io/hello/world\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud run services deploy hello_world --image=gcr.io/hello/world",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "run", "services", "deploy", "unique_service_name", "--image=gcr.io/unique/tag"),
-		},
-		serviceName: "unique_service_name",
-		gcrURL:      "gcr.io/unique/tag",
-	},
-
-	// replace Cloud Run service name and GCR URL with `--image url` syntax
-	// this test breaks right now (issue #3)
-	//{
-	//	inStr: "[//]: # ({sst-run-unix})\n" +
-	//		"```\n" +
-	//		"gcloud run services deploy hello_world --image gcr.io/hello/world\n" +
-	//		"```\n",
-	//	codeBlocks: []codeBlock {
-	//		[]string {
-	//			"gcloud run services deploy hello_world --image gcr.io/hello/world",
-	//		},
-	//	},
-	//	cmds: []*exec.Cmd{
-	//		exec.Command("gcloud", "--quiet", "run", "services", "deploy", "unique_service_name", "--image", "gcr.io/unique/tag"),
-	//	},
-	//	serviceName: "unique_service_name",
-	//	gcrURL: "gcr.io/unique/tag",
-	//},
-
-	// replace Cloud Run service name and GCR URL with provided inputs and expand environment variables
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud run services deploy hello_world --image=gcr.io/hello/world --add-cloudsql-instances=${TEST_CLOUD_SQL_CONNECTION}\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud run services deploy hello_world --image=gcr.io/hello/world --add-cloudsql-instances=${TEST_CLOUD_SQL_CONNECTION}",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "run", "services", "deploy", "unique_service_name", "--image=gcr.io/unique/tag", "--add-cloudsql-instances=project:region:instance"),
-		},
-		env: map[string]string{
-			"TEST_CLOUD_SQL_CONNECTION": "project:region:instance",
-		},
-		serviceName: "unique_service_name",
-		gcrURL:      "gcr.io/unique/tag",
-	},
-
-	// replace Cloud Run service name provided name in command with multiline arguments
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud run services update hello_world --add-cloudsql-instances=\\\n" +
-			"project:region:instance\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud run services update hello_world --add-cloudsql-instances=\\",
-				"project:region:instance",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "run", "services", "update", "unique_service_name", "--add-cloudsql-instances=project:region:instance"),
-		},
-		serviceName: "unique_service_name",
-		gcrURL:      "gcr.io/unique/tag",
-	},
-
-	// replace Cloud Run service name provided name and expand environment variables in command with multiline arguments
-	{
-		inStr: "[//]: # ({sst-run-unix})\n" +
-			"```\n" +
-			"gcloud run services update hello_world --add-cloudsql-instances=\\\n" +
-			"${TEST_CLOUD_SQL_CONNECTION}\n" +
-			"```\n",
-		codeBlocks: []codeBlock{
-			[]string{
-				"gcloud run services update hello_world --add-cloudsql-instances=\\",
-				"${TEST_CLOUD_SQL_CONNECTION}",
-			},
-		},
-		cmds: []*exec.Cmd{
-			exec.Command("gcloud", "--quiet", "run", "services", "update", "unique_service_name", "--add-cloudsql-instances=project:region:instance"),
-		},
-		env: map[string]string{
-			"TEST_CLOUD_SQL_CONNECTION": "project:region:instance",
-		},
-		serviceName: "unique_service_name",
-		gcrURL:      "gcr.io/unique/tag",
-	},
-
-	// markdown file input to codeBlocks test
-	{
-		inFileName: "readme_test.md",
-		cmds: []*exec.Cmd{
-			exec.Command("echo", "hello", "world"),
-			exec.Command("echo", "line", "one"),
-			exec.Command("echo", "line", "two"),
-		},
+		codeBlocks: nil,
 	},
 }
 
-func TestToCommands(t *testing.T) {
-	for i, tc := range tests {
-		if len(tc.codeBlocks) == 0 {
+func TestExtractCodeBlocks(t *testing.T) {
+	for i, tc := range extractCodeBlocksTests {
+		if tc.in == "" {
 			continue
 		}
 
-		if err := setEnv(tc.env); err != nil {
-			t.Errorf("#%d: setEnv: %v", i, err)
-
-			if err = unsetEnv(tc.env); err != nil {
-				t.Errorf("#%d: unsetEnv: %v", i, err)
-			}
-
-			continue
-		}
-
-		matchE := true
-		var cmds []*exec.Cmd
-		for j, codeBlock := range tc.codeBlocks {
-			h, err := codeBlock.toCommands(tc.serviceName, tc.gcrURL)
-			matchE = matchE && errors.Is(err, tc.toCommandsErr)
-			if !matchE {
-				t.Errorf("#%d.%d: error mismatch\nwant: %v\ngot: %v", i, j, tc.toCommandsErr, err)
-			}
-
-			cmds = append(cmds, h...)
-		}
-
-		if matchE && !reflect.DeepEqual(cmds, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
-		}
-
-		if err := unsetEnv(tc.env); err != nil {
-			t.Errorf("#%d: unsetEnv: %v", i, err)
-		}
-	}
-}
-
-func TestExtractLifecycle(t *testing.T) {
-	for i, tc := range tests {
-		if tc.inStr == "" {
-			continue
-		}
-
-		if err := setEnv(tc.env); err != nil {
-			t.Errorf("#%d: setEnv: %v", i, err)
-
-			if err = unsetEnv(tc.env); err != nil {
-				t.Errorf("#%d: unsetEnv: %v", i, err)
-			}
-
-			continue
-		}
-
-		s := bufio.NewScanner(strings.NewReader(tc.inStr))
-		var cmds []*exec.Cmd
-		cmds, err := extractLifecycle(s, tc.serviceName, tc.gcrURL)
-
-		mE := errors.Is(err, tc.extractLifecycleErr)
-		if !mE {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractLifecycleErr, err)
-		}
-
-		if mE && !reflect.DeepEqual(cmds, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
-		}
-
-		if err = unsetEnv(tc.env); err != nil {
-			t.Errorf("#%d: unsetEnv: %v", i, err)
-		}
-	}
-}
-
-func TestExtractCodeBlocksStr(t *testing.T) {
-	for i, tc := range tests {
-		if tc.inStr == "" {
-			continue
-		}
-
-		s := bufio.NewScanner(strings.NewReader(tc.inStr))
-
+		s := bufio.NewScanner(strings.NewReader(tc.in))
 		codeBlocks, err := extractCodeBlocks(s)
-		if !errors.Is(err, tc.extractCodeBlocksErr) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.extractCodeBlocksErr, err)
+
+		if !errors.Is(err, tc.err) {
+			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
 			continue
 		}
 
-		if !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
+		if err == nil && !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
 			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.codeBlocks, codeBlocks)
-			continue
-		}
-	}
-}
-
-func TestParseREADME(t *testing.T) {
-	for i, tc := range tests {
-		if tc.inFileName == "" {
-			continue
-		}
-
-		var cmds []*exec.Cmd
-		cmds, err := parseREADME(tc.inFileName, tc.serviceName, tc.gcrURL)
-
-		if !errors.Is(err, tc.parseREADMEErr) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.parseREADMEErr, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(cmds, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
-			continue
 		}
 	}
 }
