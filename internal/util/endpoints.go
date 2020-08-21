@@ -15,6 +15,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 	"github.com/getkin/kin-openapi/openapi3"
 	"io/ioutil"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // test holds the openapi3.Operation and HTTP method associated with a single
@@ -29,6 +31,9 @@ type test struct {
 	operation  *openapi3.Operation
 	httpMethod string
 }
+
+// httpTimeout is the default timeout that used for HTTP requests made to Cloud Run services.
+const httpTimeout = 10 * time.Second
 
 // ValidateEndpoints tests all paths (represented by openapi3.Paths) with all HTTP methods and given response bodies
 // and make sure they respond with the expected status code. Returns a success bool based on whether all the tests
@@ -105,9 +110,9 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 // makeTestRequest returns a success bool based on whether the returned status code  was included in the provided
 // openapi3.Operation expected responses.
 func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *strings.Reader, operation *openapi3.Operation, identityToken string) (bool, error) {
-	client := &http.DefaultClient
-
-	req, err := http.NewRequest(httpMethod, endpointURL, reqBodyReader)
+	// TODO: add user option to configure timeout for each test request
+	ctx, _ := context.WithTimeout(context.Background(), httpTimeout)
+	req, err := http.NewRequestWithContext(ctx, httpMethod, endpointURL, reqBodyReader)
 	if err != nil {
 		return false, fmt.Errorf("[util.makeTestRequest] creating an http.Request: %w", err)
 	}
@@ -115,7 +120,7 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 	req.Header.Add("Authorization", "Bearer "+identityToken)
 	req.Header.Add("content-type", mimeType)
 
-	resp, err := (*client).Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return false, fmt.Errorf("[util.makeTestRequest]: creating executing a http.Request: %w", err)
 	}
