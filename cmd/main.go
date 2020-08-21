@@ -22,10 +22,12 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "sst [sample-dir]",
-		Short: "An end-to-end tester for GCP samples",
-		Args:  cobra.ExactArgs(1),
-		RunE:  cmd.Root,
+		Use:           "sst [sample-dir]",
+		Short:         "An end-to-end tester for GCP samples",
+		Args:          cobra.ExactArgs(1),
+		RunE:          cmd.Root,
+		SilenceErrors: true,
+		SilenceUsage:  true,
 	}
 
 	if err := rootCmd.Execute(); err != nil {

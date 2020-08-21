@@ -42,7 +42,7 @@ var (
 
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
-	errNoREADMECodeBlocksFound = fmt.Errorf("[lifecycle.parseREADME]: no code blocks immediately preceded by %s found", codeTag)
+	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
 )
 
 // codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
@@ -68,7 +68,7 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 			i++
 			if i >= len(cb) {
-				return nil, fmt.Errorf("[lifecycle.codeBlocksTolifecycle]: unexpected end of code block; expecting command line continuation")
+				return nil, fmt.Errorf("unexpected end of code block: expecting command line continuation; code block dump:\n%s", strings.Join(cb, "\n"))
 			}
 
 			l := cb[i]
@@ -104,14 +104,14 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseREADME] os.Open %s: %w", filename, err)
+		return nil, fmt.Errorf("os.Open: %w", err)
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	codeBlocks, err := extractCodeBlocks(scanner)
 	if err != nil {
-		return nil, fmt.Errorf("[lifecycle.parseREADME] extracting code blocks out of %s: %w", filename, err)
+		return nil, fmt.Errorf("lifecycle.extractCodeBlocks: %s: %w", filename, err)
 	}
 
 	if len(codeBlocks) == 0 {
@@ -122,7 +122,7 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	for _, b := range codeBlocks {
 		cmds, err := b.toCommands(serviceName, gcrURL)
 		if err != nil {
-			return l, fmt.Errorf("[lifecycle.parseREADME] transforming code blocks in %s to executable commands: %w", filename, err)
+			return l, fmt.Errorf("codeBlock.toCommands: code blocks in %s: %w", filename, err)
 		}
 
 		l = append(l, cmds...)
@@ -137,21 +137,24 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 	var blocks []codeBlock
 
+	lineNum := 0
 	for scanner.Scan() {
+		lineNum++
 		line := scanner.Text()
 
 		if strings.Contains(line, codeTag) {
 			if s := scanner.Scan(); !s {
 				if err := scanner.Err(); err != nil {
-					return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
+					return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 				}
-				return nil, fmt.Errorf("[lifecycle.codeBlocks]: unexpected EOF; file ended immediately after code tag")
+				return nil, fmt.Errorf("unexpected EOF: file ended immediately after code tag")
 			}
+			lineNum++
 
 			startCodeBlockLine := scanner.Text()
 			m := mdCodeFenceStartRegexp.MatchString(startCodeBlockLine)
 			if !m {
-				return nil, fmt.Errorf("[lifecycle.codeBlocks]: expecting start of code block immediately after code tag")
+				return nil, fmt.Errorf("line %d: expecting start of code block immediately after code tag", lineNum)
 			}
 
 			c := strings.Count(startCodeBlockLine, "`")
@@ -160,6 +163,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 			var block codeBlock
 			var blockClosed bool
 			for scanner.Scan() {
+				lineNum++
 				line = strings.TrimSpace(scanner.Text())
 				if mdCodeFenceEndRegexp.MatchString(line) {
 					blockClosed = true
@@ -170,11 +174,11 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 			}
 
 			if err := scanner.Err(); err != nil {
-				return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
+				return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 			}
 
 			if !blockClosed {
-				return nil, fmt.Errorf("[lifecycle.codeBlocks]: unexpected EOF; code block not closed")
+				return nil, fmt.Errorf("unexpected EOF: code block not closed")
 			}
 
 			blocks = append(blocks, block)
@@ -182,7 +186,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("[lifecycle.codeBlocks] bufio.Scanner: %w", err)
+		return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 	}
 
 	return blocks, nil

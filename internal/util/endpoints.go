@@ -58,7 +58,7 @@ func ValidateEndpoints(serviceURL string, paths *openapi3.Paths, identityToken s
 		for _, t := range tests {
 			s, err := validateEndpointOperation(endpointURL, t.operation, t.httpMethod, identityToken)
 			if err != nil {
-				return s, fmt.Errorf("[util.ValidateEndpoints] testing %s requests on %s: %w", t.httpMethod, endpointURL, err)
+				return s, fmt.Errorf("util.validateEndpointOperation: testing %s requests on %s: %w", t.httpMethod, endpointURL, err)
 			}
 
 			success = s && success
@@ -82,7 +82,7 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 
 		s, err := makeTestRequest(endpointURL, httpMethod, "", reqBodyReader, operation, identityToken)
 		if err != nil {
-			return s, fmt.Errorf("[util.validateEndpointOperation] testing %s request on %s: %w", httpMethod, endpointURL, err)
+			return s, fmt.Errorf("util.makeTestRequest: testing %s request on %s: %w", httpMethod, endpointURL, err)
 		}
 
 		return s, nil
@@ -98,7 +98,7 @@ func validateEndpointOperation(endpointURL string, operation *openapi3.Operation
 
 		s, err := makeTestRequest(endpointURL, httpMethod, mimeType, reqBodyReader, operation, identityToken)
 		if err != nil {
-			return s, fmt.Errorf("[util.validateEndpointOperation] testing %s %s request on %s: %w", httpMethod, mimeType, endpointURL, err)
+			return s, fmt.Errorf("util.makeTestRequest: testing %s %s request on %s: %w", httpMethod, mimeType, endpointURL, err)
 		}
 
 		allTestsPassed = allTestsPassed && s
@@ -114,7 +114,7 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 	ctx, _ := context.WithTimeout(context.Background(), httpTimeout)
 	req, err := http.NewRequestWithContext(ctx, httpMethod, endpointURL, reqBodyReader)
 	if err != nil {
-		return false, fmt.Errorf("[util.makeTestRequest] creating an http.Request: %w", err)
+		return false, fmt.Errorf("http.NewRequest: %w", err)
 	}
 
 	req.Header.Add("Authorization", "Bearer "+identityToken)
@@ -122,13 +122,13 @@ func makeTestRequest(endpointURL, httpMethod, mimeType string, reqBodyReader *st
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("[util.makeTestRequest]: creating executing a http.Request: %w", err)
+		return false, fmt.Errorf("http.Client.Do: %w", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		return false, fmt.Errorf("[util.makeTestRequest]: reading http.Response: %w", err)
+		return false, fmt.Errorf("ioutil.ReadAll: reading http.Response.Body: %w", err)
 	}
 
 	statusCode := strconv.Itoa(resp.StatusCode)

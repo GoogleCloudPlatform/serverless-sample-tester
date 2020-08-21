@@ -51,7 +51,7 @@ func Root(cmd *cobra.Command, args []string) error {
 	defer s.Service.Delete(s.Dir)
 	defer s.DeleteCloudContainerImage()
 	if err != nil {
-		return fmt.Errorf("[cmd.Root] building and deploying sample to Cloud Run: %w", err)
+		return fmt.Errorf("Lifecycle.Execute: building and deploying sample to Cloud Run: %w", err)
 	}
 
 	log.Println("Getting identity token for gcloud auhtorized account")
@@ -61,19 +61,19 @@ func Root(cmd *cobra.Command, args []string) error {
 	identToken, err = util.ExecCommand(exec.Command("gcloud", a...), s.Dir)
 
 	if err != nil {
-		return fmt.Errorf("[cmd.Root] getting identity token for gcloud auhtorized account: %w", err)
+		return fmt.Errorf("getting identity token for gcloud auhtorized account: %w", err)
 	}
 
 	log.Println("Checking endpoints for expected results")
 	serviceURL, err := s.Service.URL(s.Dir)
 	if err != nil {
-		return fmt.Errorf("[cmd.Root] getting Cloud Run service URL: %w", err)
+		return fmt.Errorf("Service.URL: %s dir: %w", s.Dir, err)
 	}
 
 	log.Println("Validating Cloud Run service endpoints for expected status codes")
 	allTestsPassed, err := util.ValidateEndpoints(serviceURL, &swagger.Paths, identToken)
 	if err != nil {
-		return fmt.Errorf("[cmd.Root] validating Cloud Run service endpoints for expected status codes: %w", err)
+		return fmt.Errorf("util.ValidateEndpoints: %w", err)
 	}
 
 	if !allTestsPassed {
