@@ -14,7 +14,7 @@ Serverless Sample Tester does the following steps:
 ## Getting Started
 Build Serverless Sample Tester:
 ```bash
-go build -o sst cmd/main.go
+go build -o sst main.go
 ```
 
 Authenticate gcloud with your user account:

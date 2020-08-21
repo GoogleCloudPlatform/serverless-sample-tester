@@ -15,22 +15,9 @@
 package main
 
 import (
-	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/cmd"
-	"github.com/spf13/cobra"
-	"log"
+	"github.com/GoogleCloudPlatform/serverless-sample-tester/cmd"
 )
 
 func main() {
-	rootCmd := &cobra.Command{
-		Use:           "sst [sample-dir]",
-		Short:         "An end-to-end tester for GCP samples",
-		Args:          cobra.ExactArgs(1),
-		RunE:          cmd.Root,
-		SilenceErrors: true,
-		SilenceUsage:  true,
-	}
-
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error ocurred in the execution of this program: %v\n", err)
-	}
+	cmd.Execute()
 }
