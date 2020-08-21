@@ -19,6 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/sample"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +30,8 @@ var (
 		Use:   "sst [sample-dir]",
 		Short: "An end-to-end tester for GCP samples",
 		Args:  cobra.ExactArgs(1),
+		SilenceErrors: true,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Parse sample directory from command line argument
 			sampleDir, err := filepath.Abs(filepath.Dir(args[0]))
@@ -37,6 +40,10 @@ var (
 			}
 
 			log.Println("Setting up configuration values")
+			// Set up config file location
+			viper.SetConfigName("config")
+			viper.SetConfigType("yaml")
+			viper.AddConfigPath(sampleDir)
 			s, err := sample.NewSample(sampleDir)
 			if err != nil {
 				return err

@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"github.com/spf13/viper"
 )
 
 // Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
@@ -36,7 +37,7 @@ func (l Lifecycle) Execute(commandsDir string) error {
 
 		_, err := util.ExecCommand(c, commandsDir)
 		if err != nil {
-			return fmt.Errorf("[Lifecycle.Execute] executing lifecycle command: %w", err)
+			return fmt.Errorf("executing Lifecycle command: %w", err)
 		}
 	}
 
@@ -47,22 +48,34 @@ func (l Lifecycle) Execute(commandsDir string) error {
 // those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
 // (has a pom.xml) that doesn't have a Dockerfile or isn't.
 func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
-	readmePath := filepath.Join(sampleDir, "README.md")
+	var readmePath string
+	// Searching for config file
+	if err := viper.ReadInConfig(); err == nil {
+		log.Println("Config file found, using specified location for README")
+		readmePath, _ = filepath.Abs(filepath.Join(sampleDir, viper.GetString("readme")))
+	} else {
+		log.Println("No config file found, using root directory for README location")
+		readmePath = filepath.Join(sampleDir, "README.md")
+	}
+
+
 
 	if _, err := os.Stat(readmePath); err == nil {
 		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
+		// Show README location
+		log.Println("README.md location: " + readmePath)
 		if err == nil {
 			log.Println("Using build and deploy commands found in README.md")
 			return lifecycle, nil
 		}
 
 		if !errors.Is(err, errNoREADMECodeBlocksFound) {
-			return nil, fmt.Errorf("[lifecycle.NewLifecycle] parsing README.md: %w", err)
+			return nil, fmt.Errorf("lifecycle.parseREADME: %s: %w", readmePath, err)
 		}
 
-		fmt.Printf("No code blocks immediately preceded by %s found in README.md\n", codeTag)
+		log.Println("No code blocks immediately preceded by %s found in README.md\n", codeTag)
 	} else {
-		fmt.Println("No README.md found")
+		log.Println("No README.md found")
 	}
 
 	pomPath := filepath.Join(sampleDir, "pom.xml")
