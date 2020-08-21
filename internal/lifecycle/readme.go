@@ -193,7 +193,8 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 }
 
 // replaceServiceName takes a terminal command string as input and replaces the Cloud Run service name, if any.
-// It detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
+// If the user specified the service name in $CLOUD_RUN_SERVICE_NAME, it replaces that. Otherwise, as a failsafe,
+// it detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
 // with the input service name.
 func replaceServiceName(command, serviceName string) string {
 	if !(gcloudCommandRegexp.MatchString(command) && cloudRunCommandRegexp.MatchString(command)) {
@@ -201,12 +202,29 @@ func replaceServiceName(command, serviceName string) string {
 	}
 
 	sp := strings.Split(command, " ")
+
+	// Detects if the user specified the Cloud Run service name in an environment variable
+	for i := 0;  i < len(sp); i++ {
+		if sp[i] == os.ExpandEnv("$CLOUD_RUN_SERVICE_NAME") {
+			sp[i] = serviceName
+			return strings.Join(sp, " ")
+		}
+	}
+
+	// Searches for specific gcloud keywords and takes service name from them
+	for i := 0; i < len(sp) - 1; i++ {
+		if sp[i] == "deploy" || sp[i] == "update" {
+			sp[i+1] = serviceName
+			return strings.Join(sp, " ")
+		}
+	}
+
+	// Provides a failsafe if neither of the above options work
 	for i := len(sp) - 1; i >= 0; i-- {
 		if !strings.Contains(sp[i], "--") {
 			sp[i] = serviceName
 			break
 		}
 	}
-
 	return strings.Join(sp, " ")
 }

@@ -48,6 +48,7 @@ For example:
 gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ```
 ````
+In the absence of a README, the tool will fall back on reasonable defaults based on whether the sample is Java-based and/or has a Dockerfile.
 
 ## Configuration and Implementation
 
@@ -70,3 +71,11 @@ bash-style multiline commands (non-quoted backslashes at the end of a line that 
 
 The Cloud Run region should be set through the `run/region` gcloud property, as described above. Do not set the region through the `--region`
 flag in the `gcloud run` commands; the tool may not work as expected.
+
+To accurately splice out the default Cloud Run service name that is used in the README, include this service name
+as the environment variable `$CLOUD_RUN_SERVICE_NAME`. If this is not provided, the tool will attempt to parse
+what the name is, but it may not always be accurate. For example, if your README contains the command 
+```
+gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
+```
+then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
