@@ -102,11 +102,11 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 	return cmds, nil
 }
 
-// parseReadme parses a README file with the given name. It parses terminal commands in code blocks annotated by the
+// parseREADME parses a README file with the given name. It parses terminal commands in code blocks annotated by the
 // codeTag and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
 // Registry tag with the provided inputs. It also expands environment variables and supports bash-style line
 // continuations.
-func parseReadme(filename, serviceName, gcrURL string) (Lifecycle, error) {
+func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("os.Open: %w", err)
@@ -118,7 +118,7 @@ func parseReadme(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	return extractLifecycle(scanner, serviceName, gcrURL)
 }
 
-// extractLifecycle is a helper function for parseReadme. It takes a scanner that reads from a Markdown file and parses
+// extractLifecycle is a helper function for parseREADME. It takes a scanner that reads from a Markdown file and parses
 // terminal commands in code blocks annotated by the codeTag and loads them into a Lifecycle. In the process, it
 // replaces the Cloud Run service name and Container Registry tag with the provided inputs. It also expands environment
 // variables and supports bash-style line continuations.

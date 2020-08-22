@@ -224,13 +224,13 @@ func TestToCommands(t *testing.T) {
 	}
 }
 
-type parseReadmeTest struct {
+type parseREADMETest struct {
 	inFileName string    // input Markdown file
-	lifecycle  Lifecycle // expected result of parseReadme
-	err        error     // expected parseReadme return error
+	lifecycle  Lifecycle // expected result of parseREADME
+	err        error     // expected parseREADME return error
 }
 
-var parseReadmeTests = []parseReadmeTest{
+var parseREADMETests = []parseREADMETest{
 	// three code blocks, only two with comment code tags. one with one command, the other with two commands
 	{
 		inFileName: "readme_test.md",
@@ -242,14 +242,14 @@ var parseReadmeTests = []parseReadmeTest{
 	},
 }
 
-func TestParseReadme(t *testing.T) {
-	for i, tc := range parseReadmeTests {
+func TestParseREADME(t *testing.T) {
+	for i, tc := range parseREADMETests {
 		if tc.inFileName == "" {
 			continue
 		}
 
 		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
-		lifecycle, err := parseReadme(tc.inFileName, "", "")
+		lifecycle, err := parseREADME(tc.inFileName, "", "")
 
 		if !errors.Is(err, tc.err) {
 			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)

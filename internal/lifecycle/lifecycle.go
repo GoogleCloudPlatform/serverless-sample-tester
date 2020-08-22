@@ -59,7 +59,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 	}
 
 	if _, err := os.Stat(readmePath); err == nil {
-		lifecycle, err := parseReadme(readmePath, serviceName, gcrURL)
+		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
 		// Show README location
 		log.Println("README.md location: " + readmePath)
 		if err == nil {
@@ -68,7 +68,7 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 		}
 
 		if !errors.Is(err, errNoReadmeCodeBlocksFound) {
-			return nil, fmt.Errorf("lifecycle.parseReadme: %s: %w", readmePath, err)
+			return nil, fmt.Errorf("lifecycle.parseREADME: %s: %w", readmePath, err)
 		}
 
 		log.Printf("No code blocks immediately preceded by %s found in README.md\n", codeTag)
