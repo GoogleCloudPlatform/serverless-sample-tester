@@ -27,11 +27,11 @@ import (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "sst [sample-dir]",
-		Short: "An end-to-end tester for GCP samples",
-		Args:  cobra.ExactArgs(1),
+		Use:           "sst [sample-dir]",
+		Short:         "An end-to-end tester for GCP samples",
+		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
-		SilenceUsage: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Parse sample directory from command line argument
 			sampleDir, err := filepath.Abs(filepath.Dir(args[0]))
@@ -40,9 +40,12 @@ var (
 			}
 
 			log.Println("Setting up configuration values")
-			s, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
+			s, cleanup, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
 			if err != nil {
 				return err
+			}
+			if cleanup != nil {
+				defer cleanup()
 			}
 
 			log.Println("Loading test endpoints")
