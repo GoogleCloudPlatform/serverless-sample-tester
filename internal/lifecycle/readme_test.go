@@ -40,7 +40,7 @@ const uniqueGCRURL = "gcr.io/unique/tag"
 type toCommandsTest struct {
 	codeBlock codeBlock         // input code block
 	cmds      []*exec.Cmd       // expected result of codeBlock.toCommands
-	err       error             // expected return error of codeBlock.toCommands
+	err       string            // expected string contained in return error of codeBlock.toCommands
 	env       map[string]string // map of environment variables to values for this test
 }
 
@@ -208,10 +208,16 @@ func TestToCommands(t *testing.T) {
 		}
 
 		cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
-		errorMatch := errors.Is(err, tc.err)
+
+		var errorMatch bool
+		if err == nil {
+			errorMatch = tc.err == ""
+		} else {
+			errorMatch = strings.Contains(err.Error(), tc.err)
+		}
 
 		if !errorMatch {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
+			t.Errorf("#%d: error mismatch\nwant: %s\ngot: %v", i, tc.err, err)
 		}
 
 		if (errorMatch && err == nil) && !reflect.DeepEqual(cmds, tc.cmds) {

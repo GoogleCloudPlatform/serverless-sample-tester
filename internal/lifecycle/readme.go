@@ -46,7 +46,7 @@ var (
 	errCodeBlockNotClosed        = fmt.Errorf("unexpected EOF: code block not closed")
 	errCodeBlockStartNotFound    = fmt.Errorf("expecting start of code block immediately after code tag")
 	errEOFAfterCodeTag           = fmt.Errorf("unexpected EOF: file ended immediately after code tag")
-	errCodeBlockEndAfterLineCont = fmt.Errorf("unexpected end of code block: expecting command line continuation")
+	errCodeBlockEndAfterLineCont = "end of code block: expecting command line continuation"
 )
 
 // codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
@@ -72,7 +72,7 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 			i++
 			if i >= len(cb) {
-				return nil, fmt.Errorf("%w; code block dump:\n%s", errCodeBlockEndAfterLineCont, strings.Join(cb, "\n"))
+				return nil, fmt.Errorf("%s; code block dump:\n%s", errCodeBlockEndAfterLineCont, strings.Join(cb, "\n"))
 			}
 
 			l := cb[i]
