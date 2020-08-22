@@ -153,12 +153,23 @@ func replaceServiceName(name string, args []string, serviceName string) error {
 		return nil
 	}
 
+	var runCmd bool
+
 	// Detects if the user specified the Cloud Run service name in an environment variable
 	for i := 0; i < len(args); i++ {
 		if args[i] == os.ExpandEnv("$CLOUD_RUN_SERVICE_NAME") {
 			args[i] = serviceName
 			return nil
 		}
+
+		if args[i] == "run" {
+			runCmd = true
+			break
+		}
+	}
+
+	if !runCmd {
+		return nil
 	}
 
 	// Searches for specific gcloud keywords and takes service name from them
