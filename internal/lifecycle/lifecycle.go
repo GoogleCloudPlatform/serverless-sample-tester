@@ -45,8 +45,8 @@ func (l Lifecycle) Execute(commandsDir string) error {
 }
 
 // NewLifecycle tries to parse the different options provided for build and deploy command configuration. If none of
-// those options are set up, it falls back to reasonable defaults based on whether the sample is java-based
-// (has a pom.xml) that doesn't have a Dockerfile or isn't.
+// those options are set up, it falls back to reasonable defaults based on whether the sample is Java-based
+// (has a pom.xml) or not.
 func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 	var readmePath string
 	// Searching for config file
@@ -77,20 +77,15 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 	}
 
 	pomPath := filepath.Join(sampleDir, "pom.xml")
-	dockerfilePath := filepath.Join(sampleDir, "Dockerfile")
-
 	_, err := os.Stat(pomPath)
 	pomE := err == nil
 
-	_, err = os.Stat(dockerfilePath)
-	dockerfileE := err == nil
-
-	if pomE && !dockerfileE {
-		log.Println("Using default build and deploy commands for java samples without a Dockerfile")
+	if pomE {
+		log.Println("Using default build and deploy commands for Java samples")
 		return buildDefaultJavaLifecycle(serviceName, gcrURL), nil
 	}
 
-	log.Println("Using default build and deploy commands for non-java samples or java samples with a Dockerfile")
+	log.Println("Using default build and deploy commands for non-Java samples")
 	return buildDefaultLifecycle(serviceName, gcrURL), nil
 }
 

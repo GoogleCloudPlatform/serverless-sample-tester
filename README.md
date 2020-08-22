@@ -22,7 +22,7 @@ Authenticate gcloud with your user account:
 gcloud auth login
 ```
 
-Consider setting defaults for Cloud Run operations, such as setting the region:
+Set defaults for Cloud Run operations, such as setting the region:
 ```bash
 gcloud config set run/region us-central1
 gcloud config set run/platform managed
@@ -33,6 +33,14 @@ Run Serverless Sample Tester by passing in the root directory of the sample you 
 ```bash
 ./sst [target-dir]
 ```
+
+## Build and Deploying Your Sample
+This program allows you to specify how you would like it to build and deploy your sample to Cloud Run, fully managed,
+in two ways. From highest to lowest, this program uses the following precedence order to find your build and deploy
+instructions:
+
+1. README parsing
+1. Defaults
 
 ### README parsing
 To parse build and deploy commands from your sample's README, include the following comment code tag before each gcloud command:
@@ -50,9 +58,9 @@ gcloud builds submit --tag=gcr.io/${GOOGLE_CLOUD_PROJECT}/run-mysql
 ````
 In the absence of a README, the tool will fall back on reasonable defaults based on whether the sample is Java-based and/or has a Dockerfile.
 
-## Configuration and Implementation
+#### Configuration and Implementation
 
-### README location
+#### README location
 For parsing the README, the tool assumes that it is located in the target directory. If you wish to parse a README file located elsewhere, you can include the README's location
 in a `config.yaml` file in the target directory, using the key `readme`. You can specify an absolute directory, or you can simply
 specify a directory relative to the sample's directory.
@@ -62,7 +70,7 @@ For example, if the README is in the parent directory of the sample:
 readme: ../README.md
 ```
 
-### Parsing rules
+#### Parsing rules
 No parsed commands are run through a shell, meaning that the tool will not perform any typical expansions, pipelines, redirections, or other functions. This also means that popular shell builtin commands like `cd`, `export`, `echo`, and
 others may not work as expected.
 
@@ -79,3 +87,17 @@ what the name is, but it may not always be accurate. For example, if your README
 gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
 ```
 then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
+
+
+### Defaults
+If comment code tags aren't added to your README, the program will fall back to reasonable defaults to build and deploy
+your sample to Cloud Run based on whether your sample is Java-based (has a pom.xml) or not.
+
+If your sample is Java-based, your sample will be built and pushed to the Container Registry using
+`mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=[image_tag]`.
+
+Otherwise, your sample will be built and pushed to the Container Registry using
+`gcloud builds submit --tag=[image_tag]`.
+
+In both cases, `gcloud run deploy --image=[image_tag] --platform=managed`, will be used to deploy the container image to
+Cloud Run.
