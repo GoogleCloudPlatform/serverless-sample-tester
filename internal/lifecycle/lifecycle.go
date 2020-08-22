@@ -18,11 +18,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/internal/util"
+	"github.com/spf13/viper"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"github.com/spf13/viper"
 )
 
 // Lifecycle is a list of ordered exec.Cmd that should be run to execute a certain process.
@@ -58,8 +58,6 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 		readmePath = filepath.Join(sampleDir, "README.md")
 	}
 
-
-
 	if _, err := os.Stat(readmePath); err == nil {
 		lifecycle, err := parseREADME(readmePath, serviceName, gcrURL)
 		// Show README location
@@ -69,11 +67,11 @@ func NewLifecycle(sampleDir, serviceName, gcrURL string) (Lifecycle, error) {
 			return lifecycle, nil
 		}
 
-		if !errors.Is(err, errNoREADMECodeBlocksFound) {
+		if !errors.Is(err, errNoReadmeCodeBlocksFound) {
 			return nil, fmt.Errorf("lifecycle.parseREADME: %s: %w", readmePath, err)
 		}
 
-		log.Println("No code blocks immediately preceded by %s found in README.md\n", codeTag)
+		log.Printf("No code blocks immediately preceded by %s found in README.md\n", codeTag)
 	} else {
 		log.Println("No README.md found")
 	}

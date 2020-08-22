@@ -42,7 +42,11 @@ var (
 
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
-	errNoREADMECodeBlocksFound = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
+	errNoReadmeCodeBlocksFound   = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
+	errCodeBlockNotClosed        = fmt.Errorf("unexpected EOF: code block not closed")
+	errCodeBlockStartNotFound    = fmt.Errorf("expecting start of code block immediately after code tag")
+	errEOFAfterCodeTag           = fmt.Errorf("unexpected EOF: file ended immediately after code tag")
+	errCodeBlockEndAfterLineCont = "end of code block: expecting command line continuation"
 )
 
 // codeBlock is a slice of strings containing terminal commands. codeBlocks, for example, could be used to hold the
@@ -68,7 +72,7 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 			i++
 			if i >= len(cb) {
-				return nil, fmt.Errorf("unexpected end of code block: expecting command line continuation; code block dump:\n%s", strings.Join(cb, "\n"))
+				return nil, fmt.Errorf("%s; code block dump:\n%s", errCodeBlockEndAfterLineCont, strings.Join(cb, "\n"))
 			}
 
 			l := cb[i]
@@ -98,9 +102,10 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 	return cmds, nil
 }
 
-// parseREADME parses a README file with the given name. It reads terminal commands surrounded by one of the codeTags
-// listed above and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
-// Registry tag with the provided inputs.
+// parseREADME parses a README file with the given name. It parses terminal commands in code blocks annotated by the
+// codeTag and loads them into a Lifecycle. In the process, it replaces the Cloud Run service name and Container
+// Registry tag with the provided inputs. It also expands environment variables and supports bash-style line
+// continuations.
 func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -109,20 +114,29 @@ func parseREADME(filename, serviceName, gcrURL string) (Lifecycle, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+
+	return extractLifecycle(scanner, serviceName, gcrURL)
+}
+
+// extractLifecycle is a helper function for parseREADME. It takes a scanner that reads from a Markdown file and parses
+// terminal commands in code blocks annotated by the codeTag and loads them into a Lifecycle. In the process, it
+// replaces the Cloud Run service name and Container Registry tag with the provided inputs. It also expands environment
+// variables and supports bash-style line continuations.
+func extractLifecycle(scanner *bufio.Scanner, serviceName, gcrURL string) (Lifecycle, error) {
 	codeBlocks, err := extractCodeBlocks(scanner)
 	if err != nil {
-		return nil, fmt.Errorf("lifecycle.extractCodeBlocks: %s: %w", filename, err)
+		return nil, fmt.Errorf("lifecycle.extractCodeBlocks: %w", err)
 	}
 
 	if len(codeBlocks) == 0 {
-		return nil, errNoREADMECodeBlocksFound
+		return nil, errNoReadmeCodeBlocksFound
 	}
 
 	var l Lifecycle
 	for _, b := range codeBlocks {
 		cmds, err := b.toCommands(serviceName, gcrURL)
 		if err != nil {
-			return l, fmt.Errorf("codeBlock.toCommands: code blocks in %s: %w", filename, err)
+			return l, fmt.Errorf("codeBlock.toCommands: %w", err)
 		}
 
 		l = append(l, cmds...)
@@ -147,14 +161,14 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 				if err := scanner.Err(); err != nil {
 					return nil, fmt.Errorf("line %d: bufio.Scanner.Scan: %w", lineNum, err)
 				}
-				return nil, fmt.Errorf("unexpected EOF: file ended immediately after code tag")
+				return nil, errEOFAfterCodeTag
 			}
 			lineNum++
 
 			startCodeBlockLine := scanner.Text()
 			m := mdCodeFenceStartRegexp.MatchString(startCodeBlockLine)
 			if !m {
-				return nil, fmt.Errorf("line %d: expecting start of code block immediately after code tag", lineNum)
+				return nil, fmt.Errorf("line %d: %w", lineNum, errCodeBlockStartNotFound)
 			}
 
 			c := strings.Count(startCodeBlockLine, "`")
@@ -178,7 +192,7 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 			}
 
 			if !blockClosed {
-				return nil, fmt.Errorf("unexpected EOF: code block not closed")
+				return nil, errCodeBlockNotClosed
 			}
 
 			blocks = append(blocks, block)
@@ -204,7 +218,7 @@ func replaceServiceName(command, serviceName string) string {
 	sp := strings.Split(command, " ")
 
 	// Detects if the user specified the Cloud Run service name in an environment variable
-	for i := 0;  i < len(sp); i++ {
+	for i := 0; i < len(sp); i++ {
 		if sp[i] == os.ExpandEnv("$CLOUD_RUN_SERVICE_NAME") {
 			sp[i] = serviceName
 			return strings.Join(sp, " ")
@@ -212,7 +226,7 @@ func replaceServiceName(command, serviceName string) string {
 	}
 
 	// Searches for specific gcloud keywords and takes service name from them
-	for i := 0; i < len(sp) - 1; i++ {
+	for i := 0; i < len(sp)-1; i++ {
 		if sp[i] == "deploy" || sp[i] == "update" {
 			sp[i+1] = serviceName
 			return strings.Join(sp, " ")
