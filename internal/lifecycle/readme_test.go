@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"reflect"
@@ -193,40 +194,42 @@ var toCommandsTests = []toCommandsTest{
 
 func TestToCommands(t *testing.T) {
 	for i, tc := range toCommandsTests {
-		if len(tc.codeBlock) == 0 {
-			continue
-		}
-
-		if err := setEnv(tc.env); err != nil {
-			t.Errorf("#%d: setEnv: %v", i, err)
-
-			if err = unsetEnv(tc.env); err != nil {
-				t.Errorf("#%d: unsetEnv: %v", i, err)
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			if len(tc.codeBlock) == 0 {
+				return
 			}
 
-			continue
-		}
+			if err := setEnv(tc.env); err != nil {
+				t.Errorf("setEnv: %v", err)
 
-		cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
+				if err = unsetEnv(tc.env); err != nil {
+					t.Errorf("unsetEnv: %v", err)
+				}
 
-		var errorMatch bool
-		if err == nil {
-			errorMatch = tc.err == ""
-		} else {
-			errorMatch = strings.Contains(err.Error(), tc.err)
-		}
+				return
+			}
 
-		if !errorMatch {
-			t.Errorf("#%d: error mismatch\nwant: %s\ngot: %v", i, tc.err, err)
-		}
+			cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
 
-		if (errorMatch && err == nil) && !reflect.DeepEqual(cmds, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
-		}
+			var errorMatch bool
+			if err == nil {
+				errorMatch = tc.err == ""
+			} else {
+				errorMatch = strings.Contains(err.Error(), tc.err)
+			}
 
-		if err := unsetEnv(tc.env); err != nil {
-			t.Errorf("#%d: unsetEnv: %v", i, err)
-		}
+			if !errorMatch {
+				t.Errorf("error mismatch\nwant: %s\ngot: %v", tc.err, err)
+			}
+
+			if (errorMatch && err == nil) && !reflect.DeepEqual(cmds, tc.cmds) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.cmds, cmds)
+			}
+
+			if err := unsetEnv(tc.env); err != nil {
+				t.Errorf("unsetEnv: %v", err)
+			}
+		})
 	}
 }
 
@@ -250,22 +253,23 @@ var parseREADMETests = []parseREADMETest{
 
 func TestParseREADME(t *testing.T) {
 	for i, tc := range parseREADMETests {
-		if tc.inFileName == "" {
-			continue
-		}
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			if tc.inFileName == "" {
+				return
+			}
 
-		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
-		lifecycle, err := parseREADME(tc.inFileName, "", "")
+			// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
+			lifecycle, err := parseREADME(tc.inFileName, "", "")
 
-		if !errors.Is(err, tc.err) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
-		}
+			if !errors.Is(err, tc.err) {
+				t.Errorf("error mismatch\nwant: %v\ngot: %v", tc.err, err)
+				return
+			}
 
-		if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.lifecycle, lifecycle)
-			continue
-		}
+			if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.lifecycle, lifecycle)
+			}
+		})
 	}
 }
 
@@ -307,23 +311,25 @@ var extractLifecycleTests = []extractLifecycleTest{
 
 func TestExtractLifecycle(t *testing.T) {
 	for i, tc := range extractLifecycleTests {
-		if tc.in == "" {
-			continue
-		}
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			if tc.in == "" {
+				return
+			}
 
-		s := bufio.NewScanner(strings.NewReader(tc.in))
+			s := bufio.NewScanner(strings.NewReader(tc.in))
 
-		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
-		lifecycle, err := extractLifecycle(s, "", "")
+			// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
+			lifecycle, err := extractLifecycle(s, "", "")
 
-		if !errors.Is(err, tc.err) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
-		}
+			if !errors.Is(err, tc.err) {
+				t.Errorf("error mismatch\nwant: %v\ngot: %v", tc.err, err)
+				return
+			}
 
-		if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.lifecycle, lifecycle)
-		}
+			if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.lifecycle, lifecycle)
+			}
+		})
 	}
 }
 
@@ -439,20 +445,22 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 
 func TestExtractCodeBlocks(t *testing.T) {
 	for i, tc := range extractCodeBlocksTests {
-		if tc.in == "" {
-			continue
-		}
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			if tc.in == "" {
+				return
+			}
 
-		s := bufio.NewScanner(strings.NewReader(tc.in))
-		codeBlocks, err := extractCodeBlocks(s)
+			s := bufio.NewScanner(strings.NewReader(tc.in))
+			codeBlocks, err := extractCodeBlocks(s)
 
-		if !errors.Is(err, tc.err) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
-		}
+			if !errors.Is(err, tc.err) {
+				t.Errorf("error mismatch\nwant: %v\ngot: %v", tc.err, err)
+				return
+			}
 
-		if err == nil && !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.codeBlocks, codeBlocks)
-		}
+			if err == nil && !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.codeBlocks, codeBlocks)
+			}
+		})
 	}
 }
