@@ -97,9 +97,8 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-// init initializes the tool.
+// init binds command line flags and environment variables to viper configuration keys.
 func init() {
-	// Initialization goes here
 	viper.SetEnvPrefix("sst")
 
 	viper.SetDefault("cloud_build_subs", map[string]string{})
