@@ -34,6 +34,36 @@ Run Serverless Sample Tester by passing in the root directory of the sample you 
 ./sst [target-dir]
 ```
 
+
+## Build and Deploying Your Sample
+This program allows you to specify how you would like it to build and deploy your sample to Cloud Run, fully managed,
+in three ways. From highest to lowest, this program uses the following precedence order to find your build and deploy
+instructions:
+
+1. Cloud Build Config file
+1. README parsing
+1. Defaults
+
+### Cloud Build Config
+If you'd like, you can specify the build and deploy process for your sample in a [Cloud Build config file](https://cloud.google.com/cloud-build/docs/build-config)
+with the name `cloudbuild.yaml` located in the root directory of your sample. Make sure to deploy to the Cloud Run fully
+managed platform.
+
+You can specify the substitutions you'd like passed to your Cloud Build config by either setting the
+`SST_CLOUD_BUILD_SUBS` environment variable in a JSON format or the `--cloud-build-subs` flag in a comma-separated
+format when calling the `sst` executable. For example:
+
+```bash
+export SST_CLOUD_BUILD_SUBS="{\"_FOO\": \"hello\",\"_BAR\": \"world\"}"
+sst [sample-dir] # or
+
+sst [sample-dir] --cloud-build-subs="_FOO=hello,_BAR=world"
+```
+
+It's required that you use the `_SST_RUN_REGION` [substitution](https://cloud.google.com/cloud-build/docs/configuring-builds/substitute-variable-values)
+for the Cloud Run region you deploy your sample to. The substitution will be set as the same region specified by your
+local gcloud installation's `run/region` property.
+
 ### README parsing
 To parse build and deploy commands from your sample's README, include the following comment code tag before each gcloud command:
 
@@ -79,3 +109,12 @@ what the name is, but it may not always be accurate. For example, if your README
 gcloud run deploy run-mysql --image gcr.io/[YOUR_PROJECT_ID]/run-mysql
 ```
 then `$CLOUD_RUN_SERVICE_NAME` should be set to `run-mysql`.
+
+### Defaults
+If your sample is Java-based (has a `pom.xml` file in its root directory) and has a `Dockerfile` in its root directory,
+your sample will be built and pushed the Container Registry using `mvn compile com.google.cloud.tools:jib-maven-plugin:2.0.0:build -Dimage=[image_tag]`.
+
+Otherwise, your sample will be built and pushed to the Container Registry using `gcloud builds submit --tag=[image_tag]`.
+
+In both cases, `gcloud run deploy --image=[image_tag] --platform=managed`, will be used to deploy the container image to
+Cloud Run.

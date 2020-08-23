@@ -41,34 +41,46 @@ type Sample struct {
 
 	// The URL location of this sample's build container image in the GCP Container Registry.
 	cloudContainerImageURL string
+
+	// The Cloud Run region this sample will deploy to.
+	runRegion string
 }
 
-// NewSample creates a new sample object for the sample located in the provided local directory.
-func NewSample(dir string) (*Sample, error) {
+// NewSample creates a new sample object for the sample located in the provided local directory. Also returns a function
+// that cleans up any created local resources (e.g. temp files) created while making creating this object. This function
+// should be called after this sample object is no longer needed.
+func NewSample(dir string, cloudBuildConfSubs map[string]string) (*Sample, func(), error) {
 	name := sampleName(dir)
 
 	containerTag, err := cloudContainerImageTag(name, dir)
 	if err != nil {
-		return nil, fmt.Errorf("sample.cloudContainerImageTag: %s %s: %w", name, dir, err)
+		return nil, nil, fmt.Errorf("sample.cloudContainerImageTag: sample name: %s, sample dir: %s: %w", name, dir, err)
 	}
 
 	a := append(util.GcloudCommonFlags, "config", "get-value", "core/project")
 	projectID, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
 
 	if err != nil {
-		return nil, fmt.Errorf("getting gcloud default project: %w", err)
+		return nil, nil, fmt.Errorf("getting gcloud default project: %w", err)
 	}
 	cloudContainerImageURL := fmt.Sprintf("gcr.io/%s/%s", projectID, containerTag)
 
+	a = append(util.GcloudCommonFlags, "config", "get-value", "run/region")
+	runRegion, err := util.ExecCommand(exec.Command("gcloud", a...), dir)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting gcloud cloud run default region: %w", err)
+	}
+
 	serviceName, err := gcloud.ServiceName(name)
 	if err != nil {
-		return nil, fmt.Errorf("gcloud.ServiceName: %s sample: %w", name, err)
+		return nil, nil, fmt.Errorf("gcloud.ServiceName: sample name: %s: %w", name, err)
 	}
 	service := gcloud.CloudRunService{Name: serviceName}
 
-	buildDeployLifecycle, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL)
+	buildDeployLifecycle, cleanup, err := lifecycle.NewLifecycle(dir, service.Name, cloudContainerImageURL, runRegion, cloudBuildConfSubs)
 	if err != nil {
-		return nil, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
+		return nil, nil, fmt.Errorf("lifecycle.NewLifecycle: %w", err)
 	}
 
 	s := &Sample{
@@ -77,8 +89,9 @@ func NewSample(dir string) (*Sample, error) {
 		Service:                service,
 		BuildDeployLifecycle:   buildDeployLifecycle,
 		cloudContainerImageURL: cloudContainerImageURL,
+		runRegion:              runRegion,
 	}
-	return s, nil
+	return s, cleanup, nil
 }
 
 // sampleName computes a sample name for a sample object. Right now, it's defined as a shortened version of the sample's

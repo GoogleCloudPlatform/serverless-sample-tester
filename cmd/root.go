@@ -27,11 +27,11 @@ import (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "sst [sample-dir]",
-		Short: "An end-to-end tester for GCP samples",
-		Args:  cobra.ExactArgs(1),
+		Use:           "sst [sample-dir]",
+		Short:         "An end-to-end tester for GCP samples",
+		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
-		SilenceUsage: true,
+		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Parse sample directory from command line argument
 			sampleDir, err := filepath.Abs(filepath.Dir(args[0]))
@@ -39,14 +39,18 @@ var (
 				return err
 			}
 
-			log.Println("Setting up configuration values")
 			// Set up config file location
+			log.Println("Setting up configuration values")
 			viper.SetConfigName("config")
 			viper.SetConfigType("yaml")
 			viper.AddConfigPath(sampleDir)
-			s, err := sample.NewSample(sampleDir)
+
+			s, cleanup, err := sample.NewSample(sampleDir, viper.GetStringMapString("cloud_build_subs"))
 			if err != nil {
 				return err
+			}
+			if cleanup != nil {
+				defer cleanup()
 			}
 
 			log.Println("Loading test endpoints")
@@ -93,7 +97,12 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-// init initializes the tool.
+// init binds command line flags and environment variables to viper configuration keys.
 func init() {
-	// Initialization goes here
+	viper.SetEnvPrefix("sst")
+
+	viper.SetDefault("cloud_build_subs", map[string]string{})
+	viper.BindEnv("cloud_build_subs")
+	rootCmd.PersistentFlags().StringToString("cloud-build-subs", map[string]string{}, "")
+	viper.BindPFlag("cloud_build_subs", rootCmd.PersistentFlags().Lookup("cloud-build-subs"))
 }

@@ -16,8 +16,11 @@ package main
 
 import (
 	"github.com/GoogleCloudPlatform/serverless-sample-tester/cmd"
+	"log"
 )
 
 func main() {
-	cmd.Execute()
+	if err := cmd.Execute(); err != nil {
+		log.Fatalf("Error ocurred in the execution of this program: %v\n", err)
+	}
 }

@@ -35,11 +35,6 @@ const (
 )
 
 var (
-	gcloudCommandRegexp   = regexp.MustCompile(`^gcloud\b`)
-	cloudRunCommandRegexp = regexp.MustCompile(`\brun\b`)
-
-	gcrURLRegexp = regexp.MustCompile(`gcr.io/.+/\S+`)
-
 	mdCodeFenceStartRegexp = regexp.MustCompile("^\\w*`{3,}[^`]*$")
 
 	errNoReadmeCodeBlocksFound   = fmt.Errorf("lifecycle.extractCodeBlocks: no code blocks immediately preceded by %s found", codeTag)
@@ -85,8 +80,13 @@ func (cb codeBlock) toCommands(serviceName, gcrURL string) ([]*exec.Cmd, error) 
 
 		line = os.ExpandEnv(line)
 		line = gcrURLRegexp.ReplaceAllString(line, gcrURL)
-		line = replaceServiceName(line, serviceName)
+
 		sp := strings.Split(line, " ")
+
+		err := replaceServiceName(sp[0], sp[1:], serviceName)
+		if err != nil {
+			return nil, fmt.Errorf("lifecycle.replaceServiceName: %s: %w", line, err)
+		}
 
 		var cmd *exec.Cmd
 		if sp[0] == "gcloud" {
@@ -204,41 +204,4 @@ func extractCodeBlocks(scanner *bufio.Scanner) ([]codeBlock, error) {
 	}
 
 	return blocks, nil
-}
-
-// replaceServiceName takes a terminal command string as input and replaces the Cloud Run service name, if any.
-// If the user specified the service name in $CLOUD_RUN_SERVICE_NAME, it replaces that. Otherwise, as a failsafe,
-// it detects whether the command is a gcloud run command and replaces the last argument that isn't a flag
-// with the input service name.
-func replaceServiceName(command, serviceName string) string {
-	if !(gcloudCommandRegexp.MatchString(command) && cloudRunCommandRegexp.MatchString(command)) {
-		return command
-	}
-
-	sp := strings.Split(command, " ")
-
-	// Detects if the user specified the Cloud Run service name in an environment variable
-	for i := 0; i < len(sp); i++ {
-		if sp[i] == os.ExpandEnv("$CLOUD_RUN_SERVICE_NAME") {
-			sp[i] = serviceName
-			return strings.Join(sp, " ")
-		}
-	}
-
-	// Searches for specific gcloud keywords and takes service name from them
-	for i := 0; i < len(sp)-1; i++ {
-		if sp[i] == "deploy" || sp[i] == "update" {
-			sp[i+1] = serviceName
-			return strings.Join(sp, " ")
-		}
-	}
-
-	// Provides a failsafe if neither of the above options work
-	for i := len(sp) - 1; i >= 0; i-- {
-		if !strings.Contains(sp[i], "--") {
-			sp[i] = serviceName
-			break
-		}
-	}
-	return strings.Join(sp, " ")
 }
