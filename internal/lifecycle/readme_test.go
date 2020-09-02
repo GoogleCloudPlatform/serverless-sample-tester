@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"reflect"
@@ -38,15 +39,16 @@ const uniqueServiceName = "unique_service_name"
 const uniqueGCRURL = "gcr.io/unique/tag"
 
 type toCommandsTest struct {
-	codeBlock codeBlock         // input code block
-	cmds      []*exec.Cmd       // expected result of codeBlock.toCommands
-	err       string            // expected string contained in return error of codeBlock.toCommands
-	env       map[string]string // map of environment variables to values for this test
+	description string            // test case description
+	codeBlock   codeBlock         // input code block
+	cmds        []*exec.Cmd       // expected result of codeBlock.toCommands
+	err         string            // expected string contained in return error of codeBlock.toCommands
+	env         map[string]string // map of environment variables to values for this test
 }
 
 var toCommandsTests = []toCommandsTest{
-	// single one-line command
 	{
+		description: "single one-line command",
 		codeBlock: codeBlock{
 			"echo hello world",
 		},
@@ -54,9 +56,8 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("echo", "hello", "world"),
 		},
 	},
-
-	// two one-line commands
 	{
+		description: "two one-line commands",
 		codeBlock: codeBlock{
 			"echo line one",
 			"echo line two",
@@ -66,9 +67,8 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("echo", "line", "two"),
 		},
 	},
-
-	// single multiline command
 	{
+		description: "single multiline command",
 		codeBlock: codeBlock{
 			"echo multi \\",
 			"line command",
@@ -77,18 +77,16 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("echo", "multi", "line", "command"),
 		},
 	},
-
-	// line cont char but code block closes at next line
 	{
+		description: "line cont char but code block closes at next line",
 		codeBlock: codeBlock{
 			"echo multi \\",
 		},
 		cmds: nil,
 		err:  errCodeBlockEndAfterLineCont,
 	},
-
-	// expand environment variable test
 	{
+		description: "expand environment variable",
 		codeBlock: codeBlock{
 			"echo ${TEST_ENV}",
 		},
@@ -99,9 +97,8 @@ var toCommandsTests = []toCommandsTest{
 			"TEST_ENV": "hello world",
 		},
 	},
-
-	// replace Cloud Run service name with provided name test
 	{
+		description: "replace Cloud Run service name with provided name",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world",
 		},
@@ -109,9 +106,8 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName),
 		},
 	},
-
-	// replace Container Registry URL with provided URL test
 	{
+		description: "replace Container Registry URL with provided URL",
 		codeBlock: codeBlock{
 			"gcloud builds submit --tag=gcr.io/hello/world",
 		},
@@ -119,9 +115,8 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("gcloud", "--quiet", "builds", "submit", "--tag="+uniqueGCRURL),
 		},
 	},
-
-	// replace multiline GCR URL with provided URL test
 	{
+		description: "replace multiline GCR URL with provided URL",
 		codeBlock: codeBlock{
 			"gcloud builds submit --tag=gcr.io/hello/\\",
 			"world",
@@ -130,9 +125,8 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("gcloud", "--quiet", "builds", "submit", "--tag="+uniqueGCRURL),
 		},
 	},
-
-	// replace Cloud Run service name and GCR URL with provided inputs test
 	{
+		description: "replace Cloud Run service name and GCR URL with `--image=url` syntax",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world --image=gcr.io/hello/world",
 		},
@@ -140,20 +134,17 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName, "--image="+uniqueGCRURL),
 		},
 	},
-
-	// replace Cloud Run service name and GCR URL with `--image url` syntax test
-	// this test breaks right now (issue #3)
-	//{
-	//	codeBlock: codeBlock{
-	//		"gcloud run services deploy hello_world --image gcr.io/hello/world",
-	//	},
-	//	cmds: []*exec.Cmd{
-	//		exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName, "--image", uniqueGCRURL),
-	//	},
-	//	serviceName: "unique_service_name",
-	//	gcrURL: "gcr.io/unique/tag",
-	//},
 	{
+		description: "replace Cloud Run service name and GCR URL with `--image url` syntax",
+		codeBlock: codeBlock{
+			"gcloud run services deploy hello_world --image gcr.io/hello/world",
+		},
+		cmds: []*exec.Cmd{
+			exec.Command("gcloud", "--quiet", "run", "services", "deploy", uniqueServiceName, "--image", uniqueGCRURL),
+		},
+	},
+	{
+		description: "replace Cloud Run service name and GCR URL and expand environment variables",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world --image=gcr.io/hello/world --add-cloudsql-instances=${TEST_CLOUD_SQL_CONNECTION}",
 		},
@@ -164,9 +155,8 @@ var toCommandsTests = []toCommandsTest{
 			"TEST_CLOUD_SQL_CONNECTION": "project:region:instance",
 		},
 	},
-
-	// replace Cloud Run service name provided name in command with multiline arguments test
 	{
+		description: "replace Cloud Run service name in command with multiline arguments",
 		codeBlock: codeBlock{
 			"gcloud run services update hello_world --add-cloudsql-instances=\\",
 			"project:region:instance",
@@ -175,9 +165,8 @@ var toCommandsTests = []toCommandsTest{
 			exec.Command("gcloud", "--quiet", "run", "services", "update", uniqueServiceName, "--add-cloudsql-instances=project:region:instance"),
 		},
 	},
-
-	// replace Cloud Run service name provided name and expand environment variables in command with multiline arguments test
 	{
+		description: "replace Cloud Run service name and expand environment variables in command with multiline arguments",
 		codeBlock: codeBlock{
 			"gcloud run services update hello_world --add-cloudsql-instances=\\",
 			"${TEST_CLOUD_SQL_CONNECTION}",
@@ -193,53 +182,56 @@ var toCommandsTests = []toCommandsTest{
 
 func TestToCommands(t *testing.T) {
 	for i, tc := range toCommandsTests {
-		if len(tc.codeBlock) == 0 {
-			continue
-		}
-
-		if err := setEnv(tc.env); err != nil {
-			t.Errorf("#%d: setEnv: %v", i, err)
-
-			if err = unsetEnv(tc.env); err != nil {
-				t.Errorf("#%d: unsetEnv: %v", i, err)
+		t.Run(fmt.Sprintf("#%d: %s", i, tc.description), func(t *testing.T) {
+			if len(tc.codeBlock) == 0 {
+				return
 			}
 
-			continue
-		}
+			if err := setEnv(tc.env); err != nil {
+				t.Errorf("setEnv: %v", err)
 
-		cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
+				if err = unsetEnv(tc.env); err != nil {
+					t.Errorf("unsetEnv: %v", err)
+				}
 
-		var errorMatch bool
-		if err == nil {
-			errorMatch = tc.err == ""
-		} else {
-			errorMatch = strings.Contains(err.Error(), tc.err)
-		}
+				return
+			}
 
-		if !errorMatch {
-			t.Errorf("#%d: error mismatch\nwant: %s\ngot: %v", i, tc.err, err)
-		}
+			cmds, err := tc.codeBlock.toCommands(uniqueServiceName, uniqueGCRURL)
 
-		if (errorMatch && err == nil) && !reflect.DeepEqual(cmds, tc.cmds) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.cmds, cmds)
-		}
+			var errorMatch bool
+			if err == nil {
+				errorMatch = tc.err == ""
+			} else {
+				errorMatch = strings.Contains(err.Error(), tc.err)
+			}
 
-		if err := unsetEnv(tc.env); err != nil {
-			t.Errorf("#%d: unsetEnv: %v", i, err)
-		}
+			if !errorMatch {
+				t.Errorf("error mismatch\nwant: %s\ngot: %v", tc.err, err)
+			}
+
+			if (errorMatch && err == nil) && !reflect.DeepEqual(cmds, tc.cmds) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.cmds, cmds)
+			}
+
+			if err := unsetEnv(tc.env); err != nil {
+				t.Errorf("unsetEnv: %v", err)
+			}
+		})
 	}
 }
 
 type parseREADMETest struct {
-	inFileName string    // input Markdown file
-	lifecycle  Lifecycle // expected result of parseREADME
-	err        error     // expected parseREADME return error
+	description string    // test case description
+	inFileName  string    // input Markdown file
+	lifecycle   Lifecycle // expected result of parseREADME
+	err         error     // expected parseREADME return error
 }
 
 var parseREADMETests = []parseREADMETest{
-	// three code blocks, only two with comment code tags. one with one command, the other with two commands
 	{
-		inFileName: "readme_test.md",
+		description: "three code blocks, only two with comment code tags. one with one command, the other with two commands",
+		inFileName:  "readme_test.md",
 		lifecycle: Lifecycle{
 			exec.Command("echo", "hello", "world"),
 			exec.Command("echo", "line", "one"),
@@ -250,34 +242,36 @@ var parseREADMETests = []parseREADMETest{
 
 func TestParseREADME(t *testing.T) {
 	for i, tc := range parseREADMETests {
-		if tc.inFileName == "" {
-			continue
-		}
+		t.Run(fmt.Sprintf("#%d: %s", i, tc.description), func(t *testing.T) {
+			if tc.inFileName == "" {
+				return
+			}
 
-		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
-		lifecycle, err := parseREADME(tc.inFileName, "", "")
+			// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
+			lifecycle, err := parseREADME(tc.inFileName, "", "")
 
-		if !errors.Is(err, tc.err) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
-		}
+			if !errors.Is(err, tc.err) {
+				t.Errorf("error mismatch\nwant: %v\ngot: %v", tc.err, err)
+				return
+			}
 
-		if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.lifecycle, lifecycle)
-			continue
-		}
+			if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.lifecycle, lifecycle)
+			}
+		})
 	}
 }
 
 type extractLifecycleTest struct {
-	in        string    // input Markdown string
-	lifecycle Lifecycle // expected results of extractLifecycle on in
-	err       error     // expected error
+	description string    // test case description
+	in          string    // input Markdown string
+	lifecycle   Lifecycle // expected results of extractLifecycle on in
+	err         error     // expected error
 }
 
 var extractLifecycleTests = []extractLifecycleTest{
-	// single code block
 	{
+		description: "single code block",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n" +
@@ -286,9 +280,8 @@ var extractLifecycleTests = []extractLifecycleTest{
 			exec.Command("echo", "hello", "world"),
 		},
 	},
-
-	// two code blocks with markdown text in the middle
 	{
+		description: "two code blocks with markdown text in the middle",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build command\n" +
@@ -307,35 +300,38 @@ var extractLifecycleTests = []extractLifecycleTest{
 
 func TestExtractLifecycle(t *testing.T) {
 	for i, tc := range extractLifecycleTests {
-		if tc.in == "" {
-			continue
-		}
+		t.Run(fmt.Sprintf("#%d: %s", i, tc.description), func(t *testing.T) {
+			if tc.in == "" {
+				return
+			}
 
-		s := bufio.NewScanner(strings.NewReader(tc.in))
+			s := bufio.NewScanner(strings.NewReader(tc.in))
 
-		// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
-		lifecycle, err := extractLifecycle(s, "", "")
+			// Cloud Run Service name and Container Registry URL tag replacement will be tested in TestToCommands
+			lifecycle, err := extractLifecycle(s, "", "")
 
-		if !errors.Is(err, tc.err) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
-		}
+			if !errors.Is(err, tc.err) {
+				t.Errorf("error mismatch\nwant: %v\ngot: %v", tc.err, err)
+				return
+			}
 
-		if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.lifecycle, lifecycle)
-		}
+			if err == nil && !reflect.DeepEqual(lifecycle, tc.lifecycle) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.lifecycle, lifecycle)
+			}
+		})
 	}
 }
 
 type extractCodeBlocksTest struct {
-	in         string      // input Markdown string
-	codeBlocks []codeBlock // expected result of extractCodeBlocks
-	err        error       // expected return error of extractCodeBlocks
+	description string      // test case description
+	in          string      // input Markdown string
+	codeBlocks  []codeBlock // expected result of extractCodeBlocks
+	err         error       // expected return error of extractCodeBlocks
 }
 
 var extractCodeBlocksTests = []extractCodeBlocksTest{
-	// single code block
 	{
+		description: "single code block",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n" +
@@ -346,18 +342,16 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 			},
 		},
 	},
-
-	// code block not closed
 	{
+		description: "code block not closed",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n",
 		codeBlocks: nil,
 		err:        errCodeBlockNotClosed,
 	},
-
-	// code block doesn't start immediately after code tag
 	{
+		description: "code block doesn't start immediately after code tag",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"not start of code block\n" +
 			"```\n" +
@@ -366,17 +360,15 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		codeBlocks: nil,
 		err:        errCodeBlockStartNotFound,
 	},
-
-	// EOF immediately after code tag
 	{
+		description: "EOF immediately after code tag",
 		in: "instuctions\n" +
 			"[//]: # ({sst-run-unix})\n",
 		codeBlocks: nil,
 		err:        errEOFAfterCodeTag,
 	},
-
-	// single code block, two lines
 	{
+		description: "single code block, two lines",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo line one\n" +
@@ -389,9 +381,8 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 			},
 		},
 	},
-
-	// two code blocks with markdown instructions in the middle
 	{
+		description: "two code blocks with markdown instructions in the middle",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build command\n" +
@@ -410,9 +401,8 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 			},
 		},
 	},
-
-	// two code blocks, but only one is annotated with code tag
 	{
+		description: "two code blocks, but only one is annotated with code tag",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build and deploy command\n" +
@@ -427,9 +417,8 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 			},
 		},
 	},
-
-	// one code block, but not annotated with code tag
 	{
+		description: "one code block, but not annotated with code tag",
 		in: "```\n" +
 			"echo hello world\n" +
 			"```\n",
@@ -439,20 +428,22 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 
 func TestExtractCodeBlocks(t *testing.T) {
 	for i, tc := range extractCodeBlocksTests {
-		if tc.in == "" {
-			continue
-		}
+		t.Run(fmt.Sprintf("#%d: %s", i, tc.description), func(t *testing.T) {
+			if tc.in == "" {
+				return
+			}
 
-		s := bufio.NewScanner(strings.NewReader(tc.in))
-		codeBlocks, err := extractCodeBlocks(s)
+			s := bufio.NewScanner(strings.NewReader(tc.in))
+			codeBlocks, err := extractCodeBlocks(s)
 
-		if !errors.Is(err, tc.err) {
-			t.Errorf("#%d: error mismatch\nwant: %v\ngot: %v", i, tc.err, err)
-			continue
-		}
+			if !errors.Is(err, tc.err) {
+				t.Errorf("error mismatch\nwant: %v\ngot: %v", tc.err, err)
+				return
+			}
 
-		if err == nil && !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
-			t.Errorf("#%d: result mismatch\nwant: %#+v\ngot: %#+v", i, tc.codeBlocks, codeBlocks)
-		}
+			if err == nil && !reflect.DeepEqual(codeBlocks, tc.codeBlocks) {
+				t.Errorf("result mismatch\nwant: %#+v\ngot: %#+v", tc.codeBlocks, codeBlocks)
+			}
+		})
 	}
 }
