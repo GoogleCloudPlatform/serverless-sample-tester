@@ -48,16 +48,16 @@ type toCommandsTest struct {
 
 var toCommandsTests = []toCommandsTest{
 	{
-		description: "single one-line command test",
+		description: "single one-line command",
 		codeBlock: codeBlock{
 			"echo hello world",
 		},
 		cmds: []*exec.Cmd{
-			exec.Command("echo", "hello", "wosrld"),
+			exec.Command("echo", "hello", "world"),
 		},
 	},
 	{
-		description: "two one-line commands test",
+		description: "two one-line commands",
 		codeBlock: codeBlock{
 			"echo line one",
 			"echo line two",
@@ -68,7 +68,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "single multiline command test",
+		description: "single multiline command",
 		codeBlock: codeBlock{
 			"echo multi \\",
 			"line command",
@@ -78,7 +78,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "line cont char but code block closes at next line test",
+		description: "line cont char but code block closes at next line",
 		codeBlock: codeBlock{
 			"echo multi \\",
 		},
@@ -86,7 +86,7 @@ var toCommandsTests = []toCommandsTest{
 		err:  errCodeBlockEndAfterLineCont,
 	},
 	{
-		description: "expand environment variable test",
+		description: "expand environment variable",
 		codeBlock: codeBlock{
 			"echo ${TEST_ENV}",
 		},
@@ -98,7 +98,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Cloud Run service name with provided name test",
+		description: "replace Cloud Run service name with provided name",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world",
 		},
@@ -107,7 +107,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Container Registry URL with provided URL test",
+		description: "replace Container Registry URL with provided URL",
 		codeBlock: codeBlock{
 			"gcloud builds submit --tag=gcr.io/hello/world",
 		},
@@ -116,7 +116,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace multiline GCR URL with provided URL test",
+		description: "replace multiline GCR URL with provided URL",
 		codeBlock: codeBlock{
 			"gcloud builds submit --tag=gcr.io/hello/\\",
 			"world",
@@ -126,7 +126,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Cloud Run service name and GCR URL with `--image=url` syntax test",
+		description: "replace Cloud Run service name and GCR URL with `--image=url` syntax",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world --image=gcr.io/hello/world",
 		},
@@ -135,7 +135,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Cloud Run service name and GCR URL with `--image url` syntax test",
+		description: "replace Cloud Run service name and GCR URL with `--image url` syntax",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world --image gcr.io/hello/world",
 		},
@@ -144,7 +144,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Cloud Run service name and GCR URL and expand environment variables test",
+		description: "replace Cloud Run service name and GCR URL and expand environment variables",
 		codeBlock: codeBlock{
 			"gcloud run services deploy hello_world --image=gcr.io/hello/world --add-cloudsql-instances=${TEST_CLOUD_SQL_CONNECTION}",
 		},
@@ -156,7 +156,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Cloud Run service name in command with multiline arguments test",
+		description: "replace Cloud Run service name in command with multiline arguments",
 		codeBlock: codeBlock{
 			"gcloud run services update hello_world --add-cloudsql-instances=\\",
 			"project:region:instance",
@@ -166,7 +166,7 @@ var toCommandsTests = []toCommandsTest{
 		},
 	},
 	{
-		description: "replace Cloud Run service name and expand environment variables in command with multiline arguments test",
+		description: "replace Cloud Run service name and expand environment variables in command with multiline arguments",
 		codeBlock: codeBlock{
 			"gcloud run services update hello_world --add-cloudsql-instances=\\",
 			"${TEST_CLOUD_SQL_CONNECTION}",
@@ -230,7 +230,7 @@ type parseREADMETest struct {
 
 var parseREADMETests = []parseREADMETest{
 	{
-		description: "three code blocks, only two with comment code tags. one with one command, the other with two commands test",
+		description: "three code blocks, only two with comment code tags. one with one command, the other with two commands",
 		inFileName:  "readme_test.md",
 		lifecycle: Lifecycle{
 			exec.Command("echo", "hello", "world"),
@@ -271,7 +271,7 @@ type extractLifecycleTest struct {
 
 var extractLifecycleTests = []extractLifecycleTest{
 	{
-		description: "single code block test",
+		description: "single code block",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n" +
@@ -281,7 +281,7 @@ var extractLifecycleTests = []extractLifecycleTest{
 		},
 	},
 	{
-		description: "two code blocks with markdown text in the middle test",
+		description: "two code blocks with markdown text in the middle",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build command\n" +
@@ -331,7 +331,7 @@ type extractCodeBlocksTest struct {
 
 var extractCodeBlocksTests = []extractCodeBlocksTest{
 	{
-		description: "single code block test",
+		description: "single code block",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n" +
@@ -343,7 +343,7 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		},
 	},
 	{
-		description: "code block not closed test",
+		description: "code block not closed",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo hello world\n",
@@ -351,7 +351,7 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		err:        errCodeBlockNotClosed,
 	},
 	{
-		description: "code block doesn't start immediately after code tag test",
+		description: "code block doesn't start immediately after code tag",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"not start of code block\n" +
 			"```\n" +
@@ -361,14 +361,14 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		err:        errCodeBlockStartNotFound,
 	},
 	{
-		description: "EOF immediately after code tag test",
+		description: "EOF immediately after code tag",
 		in: "instuctions\n" +
 			"[//]: # ({sst-run-unix})\n",
 		codeBlocks: nil,
 		err:        errEOFAfterCodeTag,
 	},
 	{
-		description: "single code block, two lines test",
+		description: "single code block, two lines",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo line one\n" +
@@ -382,7 +382,7 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		},
 	},
 	{
-		description: "two code blocks with markdown instructions in the middle test",
+		description: "two code blocks with markdown instructions in the middle",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build command\n" +
@@ -402,7 +402,7 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		},
 	},
 	{
-		description: "two code blocks, but only one is annotated with code tag test",
+		description: "two code blocks, but only one is annotated with code tag",
 		in: "[//]: # ({sst-run-unix})\n" +
 			"```\n" +
 			"echo build and deploy command\n" +
@@ -418,7 +418,7 @@ var extractCodeBlocksTests = []extractCodeBlocksTest{
 		},
 	},
 	{
-		description: "one code block, but not annotated with code tag test",
+		description: "one code block, but not annotated with code tag",
 		in: "```\n" +
 			"echo hello world\n" +
 			"```\n",
